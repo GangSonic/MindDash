@@ -1,64 +1,194 @@
 // src/scenes/GameScreen.tsx
-import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
-import Phaser from 'phaser';
+import React, { useState, useRef } from 'react';
+import { View, StyleSheet, Dimensions, PanResponder } from 'react-native';
+import { GameEngine } from 'react-native-game-engine';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+// === ENTIDADES DEL JUEGO ===
+interface Player {
+  x: number;
+  y: number;
+  radius: number;
+  color: string;
+  velocityX: number;
+  velocityY: number;
+}
+
+interface Entities {
+  player: {
+    body: Player;
+    renderer: React.ComponentType<any>;
+  };
+}
+
+// === RENDERER DEL JUGADOR ===
+const PlayerRenderer = ({ body }: { body: Player }) => {
+  return (
+    <View
+      style={{
+        position: 'absolute',
+        left: body.x - body.radius,
+        top: body.y - body.radius,
+        width: body.radius * 2,
+        height: body.radius * 2,
+        borderRadius: body.radius,
+        backgroundColor: body.color,
+      }}
+    />
+  );
+};
+
+// === SISTEMA DE FÍSICA ===
+const Physics = (entities: Entities, { time }: any) => {
+  const player = entities.player.body;
+  
+  // Actualizar posición
+  player.x += player.velocityX;
+  player.y += player.velocityY;
+  
+  // Límites de pantalla
+  if (player.x < player.radius) player.x = player.radius;
+  if (player.x > SCREEN_WIDTH - player.radius) player.x = SCREEN_WIDTH - player.radius;
+  if (player.y < player.radius) player.y = player.radius;
+  if (player.y > (SCREEN_HEIGHT * 0.8) - player.radius) player.y = (SCREEN_HEIGHT * 0.8) - player.radius;
+  
+  return entities;
+};
+
+// === COMPONENTE PRINCIPAL ===
 export default function GameScreen() {
-  const gameRef = useRef<Phaser.Game | null>(null);
+  const [running, setRunning] = useState(true);
+  const gameEngineRef = useRef<GameEngine>(null);
+  
+  // Velocidad del jugador
+  const velocity = useRef({ x: 0, y: 0 });
+  const speed = 5;
 
-  useEffect(() => {
-    // Config Phaser para móvil
-    const config: Phaser.Types.Core.GameConfig = {
-      type: Phaser.WEBGL,
-      width: SCREEN_WIDTH,
-      height: SCREEN_HEIGHT * 0.8,
-      parent: 'game-container',
-      scene: {
-        preload: preload,
-        create: create,
-        update: update,
+  // === ENTIDADES INICIALES ===
+  const entities: Entities = {
+    player: {
+      body: {
+        x: 100,
+        y: 100,
+        radius: 20,
+        color: '#ff0000',
+        velocityX: 0,
+        velocityY: 0,
       },
-      scale: {
-        mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
-      },
-    };
+      renderer: PlayerRenderer,
+    },
+  };
 
-    const game = new Phaser.Game(config);
-    gameRef.current = game;
+  // === SISTEMA DE ACTUALIZACIÓN ===
+  const updateHandler = (entities: Entities) => {
+    entities.player.body.velocityX = velocity.current.x;
+    entities.player.body.velocityY = velocity.current.y;
+    return entities;
+  };
 
-    return () => {
-      game.destroy(true);
-    };
-  }, []);
+  // === D-PAD HANDLER ===
+  const dpadResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: (evt, gestureState) => {
+      const dx = gestureState.dx;
+      const dy = gestureState.dy;
+      
+      if (Math.abs(dx) > Math.abs(dy)) {
+        velocity.current.x = dx > 0 ? speed : -speed;
+        velocity.current.y = 0;
+      } else {
+        velocity.current.y = dy > 0 ? speed : -speed;
+        velocity.current.x = 0;
+      }
+    },
+    onPanResponderMove: (evt, gestureState) => {
+      const dx = gestureState.dx;
+      const dy = gestureState.dy;
+      
+      if (Math.abs(dx) > Math.abs(dy)) {
+        velocity.current.x = dx > 0 ? speed : -speed;
+        velocity.current.y = 0;
+      } else {
+        velocity.current.y = dy > 0 ? speed : -speed;
+        velocity.current.x = 0;
+      }
+    },
+    onPanResponderRelease: () => {
+      velocity.current = { x: 0, y: 0 };
+    },
+  });
 
   return (
     <View style={styles.container}>
-      <View id="game-container" style={styles.gameContainer} />
+      {/* GAME ENGINE */}
+      <GameEngine
+        ref={gameEngineRef}
+        style={styles.gameContainer}
+        systems={[Physics, updateHandler]}
+        entities={entities}
+        running={running}
+      />
+
+      {/* CONTROLES */}
+      <View style={styles.controls}>
+        {/* D-PAD */}
+        <View
+          {...dpadResponder.panHandlers}
+          style={styles.dpad}
+        />
+
+        {/* BOTONES */}
+        <View style={styles.buttons}>
+          <View style={[styles.button, styles.attackButton]} />
+          <View style={[styles.button, styles.dashButton]} />
+        </View>
+      </View>
     </View>
   );
 }
 
-function preload(this: Phaser.Scene) {
-  // Cargar sprites (después)
-  this.load.image('tiles', 'assets/sprites/tiles.png');
-}
-
-function create(this: Phaser.Scene) {
-  // Jugador básico (círculo por ahora)
-  const player = this.add.circle(100, 100, 20, 0xff0000);
-  player.setInteractive();
-}
-
-function update(this: Phaser.Scene) {
-  // Lógica juego
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  gameContainer: { flex: 1 },
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  gameContainer: {
+    flex: 1,
+    backgroundColor: '#1a1a1a',
+  },
+  controls: {
+    position: 'absolute',
+    bottom: 20,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+  },
+  dpad: {
+    width: 100,
+    height: 100,
+    backgroundColor: '#444444',
+    borderRadius: 10,
+  },
+  buttons: {
+    flexDirection: 'row',
+    gap: 15,
+    alignItems: 'center',
+  },
+  button: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    borderWidth: 3,
+    borderColor: '#ffffff',
+  },
+  attackButton: {
+    backgroundColor: '#ff4444',
+  },
+  dashButton: {
+    backgroundColor: '#4444ff',
+  },
 });
-
-export type { };
