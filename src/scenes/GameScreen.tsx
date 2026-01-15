@@ -1,6 +1,6 @@
 // src/scenes/GameScreen.tsx
-import React, { useState, useRef } from 'react';
-import { View, StyleSheet, Dimensions, PanResponder } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, StyleSheet, Dimensions, PanResponder, Image } from 'react-native';
 import { GameEngine } from 'react-native-game-engine';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -23,19 +23,55 @@ interface Entities {
 }
 
 // === RENDERER DEL JUGADOR ===
+const FINN_SPRITE = require('../../assets/finn_walk.png');
+
+// Dimensiones basadas en tus 1000x250
+const FRAME_W = 62;  // Ancho de un solo Finn
+const FRAME_H = 125; // Alto de un solo Finn
+
 const PlayerRenderer = ({ body }: { body: Player }) => {
+  const [frame, setFrame] = React.useState(0);
+  const totalFrames = 10; // Ajusta según cuántos pasos tenga la fila de caminata
+
+  React.useEffect(() => {
+    // Solo animar si hay movimiento
+    if (body.velocityX !== 0 || body.velocityY !== 0) {
+      const timer = setInterval(() => {
+        setFrame((f) => (f + 1) % totalFrames);
+      }, 100); // 100ms es una velocidad estándar para caminar
+      return () => clearInterval(timer);
+    } else {
+      setFrame(0); // Frame de estar quieto
+    }
+  }, [body.velocityX, body.velocityY]);
+
   return (
     <View
       style={{
         position: 'absolute',
-        left: body.x - body.radius,
-        top: body.y - body.radius,
-        width: body.radius * 2,
-        height: body.radius * 2,
-        borderRadius: body.radius,
-        backgroundColor: body.color,
+        left: body.x - (FRAME_W / 2),
+        top: body.y - (FRAME_H / 2),
+        width: FRAME_W,
+        height: FRAME_H,
+        overflow: 'hidden', // Esto crea la "ventana" para ver solo un frame
       }}
-    />
+    >
+      <Image
+        source={FINN_SPRITE}
+        style={{
+          width: 1000, // Ancho total original
+          height: 250, // Alto total original
+          position: 'absolute',
+          // Movemos la imagen a la izquierda según el frame actual
+          left: -frame * FRAME_W,
+          // Si la fila de caminar es la de abajo, ponemos -125
+          top: 0, 
+          // Espejo: si va a la izquierda (negativo), volteamos la imagen
+          transform: [{ scaleX: body.velocityX < 0 ? -1 : 1 }],
+        }}
+        resizeMode="stretch"
+      />
+    </View>
   );
 };
 
@@ -71,8 +107,8 @@ export default function GameScreen() {
       body: {
         x: 100,
         y: 100,
-        radius: 20,
-        color: '#ff0000',
+        radius: 30,
+        color: 'transparent',
         velocityX: 0,
         velocityY: 0,
       },
