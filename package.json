@@ -16,8 +16,6 @@
     "expo": "~54.0.31",
     "expo-gl": "~16.0.9",
     "expo-status-bar": "~3.0.9",
-    "phaser": "^3.80.1",
-    "phaser3-rex-plugins": "^1.80.17",
     "react": "19.1.0",
     "react-native": "0.81.5",
     "react-native-game-engine": "^1.2.0",
