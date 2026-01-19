@@ -1,94 +1,96 @@
-// src/scenes/GameScreen.tsx
-import React, { useEffect, useState, useRef } from 'react';
-import { View, StyleSheet, Dimensions, PanResponder, Image } from 'react-native';
+import React, { useState, useRef } from 'react';
+// 1. Agregamos 'Image' a los imports
+import { View, StyleSheet, Dimensions, Text, Pressable, Image } from 'react-native';
 import { GameEngine } from 'react-native-game-engine';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+// === TRUCO PARA PANTALLA ===
+const { width, height } = Dimensions.get('window');
+const SCREEN_WIDTH = Math.max(width, height);
+const SCREEN_HEIGHT = Math.min(width, height);
 
-// === ENTIDADES DEL JUEGO ===
-interface Player {
-  x: number;
-  y: number;
+// === CONFIGURACIÓN ===
+const CONFIG = {
+  PLAYER_SIZE: 15,       // Ajustado un poco para que se vea bien en el mapa
+  PLAYER_SPEED: 6,
+  PLAYER_COLOR: '#ff4444',
+  SAFE_BOTTOM_MARGIN: 95, 
+};
+
+// === TIPOS ===
+interface PlayerBody {
+  position: { x: number; y: number };
+  velocity: { x: number; y: number };
   radius: number;
   color: string;
-  velocityX: number;
-  velocityY: number;
 }
 
-interface Entities {
+interface GameEntities {
+  // 2. Agregamos el mapa a las entidades
+  map: { renderer: React.ComponentType<any> };
   player: {
-    body: Player;
+    body: PlayerBody;
     renderer: React.ComponentType<any>;
   };
 }
 
+// === 3. RENDERER DEL MAPA (IMAGEN) ===
+const MapRenderer = () => {
+  return (
+    <Image
+      // Asegúrate de que el nombre coincida con tu archivo en 'assets'
+      source={require('../../assets/mapa_bosque.png')} 
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: SCREEN_WIDTH,   // Estira la imagen al ancho de la pantalla
+        height: SCREEN_HEIGHT, // Estira la imagen al alto de la pantalla
+        resizeMode: 'stretch', // 'stretch' ajusta, 'cover' recorta si es necesario
+        zIndex: -1, // Se asegura de estar DETRÁS del jugador
+      }}
+    />
+  );
+};
+
 // === RENDERER DEL JUGADOR ===
-const FINN_SPRITE = require('../../assets/finn_walk.png');
-
-// Dimensiones basadas en tus 1000x250
-const FRAME_W = 62;  // Ancho de un solo Finn
-const FRAME_H = 125; // Alto de un solo Finn
-
-const PlayerRenderer = ({ body }: { body: Player }) => {
-  const [frame, setFrame] = React.useState(0);
-  const totalFrames = 10; // Ajusta según cuántos pasos tenga la fila de caminata
-
-  React.useEffect(() => {
-    // Solo animar si hay movimiento
-    if (body.velocityX !== 0 || body.velocityY !== 0) {
-      const timer = setInterval(() => {
-        setFrame((f) => (f + 1) % totalFrames);
-      }, 100); // 100ms es una velocidad estándar para caminar
-      return () => clearInterval(timer);
-    } else {
-      setFrame(0); // Frame de estar quieto
-    }
-  }, [body.velocityX, body.velocityY]);
-
+const PlayerRenderer = ({ body }: { body: PlayerBody }) => {
   return (
     <View
       style={{
         position: 'absolute',
-        left: body.x - (FRAME_W / 2),
-        top: body.y - (FRAME_H / 2),
-        width: FRAME_W,
-        height: FRAME_H,
-        overflow: 'hidden', // Esto crea la "ventana" para ver solo un frame
+        left: body.position.x,
+        top: body.position.y,
+        width: body.radius * 2,
+        height: body.radius * 2,
+        borderRadius: body.radius,
+        backgroundColor: body.color,
+        borderWidth: 2,
+        borderColor: '#fff',
+        shadowColor: body.color,
+        shadowOpacity: 0.8,
+        elevation: 5,
       }}
-    >
-      <Image
-        source={FINN_SPRITE}
-        style={{
-          width: 1000, // Ancho total original
-          height: 250, // Alto total original
-          position: 'absolute',
-          // Movemos la imagen a la izquierda según el frame actual
-          left: -frame * FRAME_W,
-          // Si la fila de caminar es la de abajo, ponemos -125
-          top: 0, 
-          // Espejo: si va a la izquierda (negativo), volteamos la imagen
-          transform: [{ scaleX: body.velocityX < 0 ? -1 : 1 }],
-        }}
-        resizeMode="stretch"
-      />
-    </View>
+    />
   );
 };
 
-// === SISTEMA DE FÍSICA ===
-const Physics = (entities: Entities, { time }: any) => {
+// === FÍSICA ===
+const PhysicsSystem = (entities: GameEntities, { time }: any) => {
   const player = entities.player.body;
+
+  player.position.x += player.velocity.x;
+  player.position.y += player.velocity.y;
+
+  // LÍMITES DE PANTALLA
+  if (player.position.x < 0) player.position.x = 0;
+  if (player.position.x > SCREEN_WIDTH - player.radius * 2) 
+      player.position.x = SCREEN_WIDTH - player.radius * 2;
+  if (player.position.y < 0) player.position.y = 0;
   
-  // Actualizar posición
-  player.x += player.velocityX;
-  player.y += player.velocityY;
-  
-  // Límites de pantalla
-  if (player.x < player.radius) player.x = player.radius;
-  if (player.x > SCREEN_WIDTH - player.radius) player.x = SCREEN_WIDTH - player.radius;
-  if (player.y < player.radius) player.y = player.radius;
-  if (player.y > (SCREEN_HEIGHT * 0.8) - player.radius) player.y = (SCREEN_HEIGHT * 0.8) - player.radius;
-  
+  const floorLimit = SCREEN_HEIGHT - player.radius * 2 - CONFIG.SAFE_BOTTOM_MARGIN;
+  if (player.position.y > floorLimit) 
+      player.position.y = floorLimit;
+
   return entities;
 };
 
@@ -96,89 +98,71 @@ const Physics = (entities: Entities, { time }: any) => {
 export default function GameScreen() {
   const [running, setRunning] = useState(true);
   const gameEngineRef = useRef<GameEngine>(null);
-  
-  // Velocidad del jugador
-  const velocity = useRef({ x: 0, y: 0 });
-  const speed = 5;
+  const velocityRef = useRef({ x: 0, y: 0 });
+
+  // === SISTEMA DE INPUT ===
+  const InputSystem = (entities: GameEntities) => {
+    entities.player.body.velocity.x = velocityRef.current.x;
+    entities.player.body.velocity.y = velocityRef.current.y;
+    return entities;
+  };
 
   // === ENTIDADES INICIALES ===
-  const entities: Entities = {
+  const initialEntities: GameEntities = {
+    // 4. Cargamos el mapa primero (Fondo)
+    map: {
+        renderer: MapRenderer,
+    },
+    // Cargamos al jugador después (Capa superior)
     player: {
       body: {
-        x: 100,
-        y: 100,
-        radius: 30,
-        color: 'transparent',
-        velocityX: 0,
-        velocityY: 0,
+        position: { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 },
+        velocity: { x: 0, y: 0 },
+        radius: CONFIG.PLAYER_SIZE / 2,
+        color: CONFIG.PLAYER_COLOR,
       },
       renderer: PlayerRenderer,
     },
   };
 
-  // === SISTEMA DE ACTUALIZACIÓN ===
-  const updateHandler = (entities: Entities) => {
-    entities.player.body.velocityX = velocity.current.x;
-    entities.player.body.velocityY = velocity.current.y;
-    return entities;
+  // === LÓGICA DE BOTONES ===
+  const startMove = (direction: 'up' | 'down' | 'left' | 'right') => {
+    switch (direction) {
+      case 'up': velocityRef.current = { x: 0, y: -CONFIG.PLAYER_SPEED }; break;
+      case 'down': velocityRef.current = { x: 0, y: CONFIG.PLAYER_SPEED }; break;
+      case 'left': velocityRef.current = { x: -CONFIG.PLAYER_SPEED, y: 0 }; break;
+      case 'right': velocityRef.current = { x: CONFIG.PLAYER_SPEED, y: 0 }; break;
+    }
   };
 
-  // === D-PAD HANDLER ===
-  const dpadResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onPanResponderGrant: (evt, gestureState) => {
-      const dx = gestureState.dx;
-      const dy = gestureState.dy;
-      
-      if (Math.abs(dx) > Math.abs(dy)) {
-        velocity.current.x = dx > 0 ? speed : -speed;
-        velocity.current.y = 0;
-      } else {
-        velocity.current.y = dy > 0 ? speed : -speed;
-        velocity.current.x = 0;
-      }
-    },
-    onPanResponderMove: (evt, gestureState) => {
-      const dx = gestureState.dx;
-      const dy = gestureState.dy;
-      
-      if (Math.abs(dx) > Math.abs(dy)) {
-        velocity.current.x = dx > 0 ? speed : -speed;
-        velocity.current.y = 0;
-      } else {
-        velocity.current.y = dy > 0 ? speed : -speed;
-        velocity.current.x = 0;
-      }
-    },
-    onPanResponderRelease: () => {
-      velocity.current = { x: 0, y: 0 };
-    },
-  });
+  const stopMove = () => {
+    velocityRef.current = { x: 0, y: 0 };
+  };
 
   return (
     <View style={styles.container}>
-      {/* GAME ENGINE */}
       <GameEngine
         ref={gameEngineRef}
         style={styles.gameContainer}
-        systems={[Physics, updateHandler]}
-        entities={entities}
+        systems={[InputSystem, PhysicsSystem]} 
+        entities={initialEntities}
         running={running}
       />
 
-      {/* CONTROLES */}
-      <View style={styles.controls}>
-        {/* D-PAD */}
-        <View
-          {...dpadResponder.panHandlers}
-          style={styles.dpad}
-        />
+      <View style={styles.controlsArea}>
+        {/* CRUCETA (D-PAD) */}
+        <View style={styles.dpadContainer}>
+            <Pressable style={({pressed}) => [styles.dpadBtn, styles.btnUp, pressed && styles.btnPressed]} onPressIn={() => startMove('up')} onPressOut={stopMove}><Text style={styles.arrow}>▲</Text></Pressable>
+            <Pressable style={({pressed}) => [styles.dpadBtn, styles.btnDown, pressed && styles.btnPressed]} onPressIn={() => startMove('down')} onPressOut={stopMove}><Text style={styles.arrow}>▼</Text></Pressable>
+            <Pressable style={({pressed}) => [styles.dpadBtn, styles.btnLeft, pressed && styles.btnPressed]} onPressIn={() => startMove('left')} onPressOut={stopMove}><Text style={styles.arrow}>◀</Text></Pressable>
+            <Pressable style={({pressed}) => [styles.dpadBtn, styles.btnRight, pressed && styles.btnPressed]} onPressIn={() => startMove('right')} onPressOut={stopMove}><Text style={styles.arrow}>▶</Text></Pressable>
+            <View style={styles.dpadCenter} />
+        </View>
 
-        {/* BOTONES */}
-        <View style={styles.buttons}>
-          <View style={[styles.button, styles.attackButton]} />
-          <View style={[styles.button, styles.dashButton]} />
+        {/* BOTONES DE ACCIÓN */}
+        <View style={styles.actionButtons}>
+          <View style={[styles.btn, styles.btnAttack]} />
+          <View style={[styles.btn, styles.btnDash]} />
         </View>
       </View>
     </View>
@@ -188,43 +172,36 @@ export default function GameScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#000', // Fondo negro por si la imagen no carga
   },
   gameContainer: {
-    flex: 1,
-    backgroundColor: '#1a1a1a',
-  },
-  controls: {
     position: 'absolute',
-    bottom: 20,
+    top: 0,
     left: 0,
-    right: 0,
+    width: '100%',
+    height: '100%',
+  },
+  controlsArea: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    alignItems: 'flex-end',
+    paddingHorizontal: 50,
+    paddingBottom: 30,
   },
-  dpad: {
-    width: 100,
-    height: 100,
-    backgroundColor: '#444444',
-    borderRadius: 10,
-  },
-  buttons: {
-    flexDirection: 'row',
-    gap: 15,
-    alignItems: 'center',
-  },
-  button: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 3,
-    borderColor: '#ffffff',
-  },
-  attackButton: {
-    backgroundColor: '#ff4444',
-  },
-  dashButton: {
-    backgroundColor: '#4444ff',
-  },
+  dpadContainer: { width: 150, height: 150, position: 'relative' },
+  dpadBtn: { position: 'absolute', backgroundColor: 'rgba(80, 80, 80, 0.6)', justifyContent: 'center', alignItems: 'center', borderRadius: 5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  btnPressed: { backgroundColor: 'rgba(120, 120, 120, 0.9)' },
+  btnUp: { top: 0, left: 50, width: 50, height: 50, borderTopLeftRadius: 8, borderTopRightRadius: 8 },
+  btnDown: { bottom: 0, left: 50, width: 50, height: 50, borderBottomLeftRadius: 8, borderBottomRightRadius: 8 },
+  btnLeft: { top: 50, left: 0, width: 50, height: 50, borderTopLeftRadius: 8, borderBottomLeftRadius: 8 },
+  btnRight: { top: 50, right: 0, width: 50, height: 50, borderTopRightRadius: 8, borderBottomRightRadius: 8 },
+  dpadCenter: { position: 'absolute', top: 50, left: 50, width: 50, height: 50, backgroundColor: 'rgba(60, 60, 60, 1)', zIndex: -1 },
+  arrow: { color: 'rgba(255, 255, 255, 0.6)', fontSize: 20, fontWeight: 'bold' },
+  actionButtons: { flexDirection: 'row', gap: 25, alignItems: 'center' },
+  btn: { width: 75, height: 75, borderRadius: 37.5, borderWidth: 2, borderColor: 'rgba(255, 255, 255, 0.3)' },
+  btnAttack: { backgroundColor: 'rgba(231, 76, 60, 0.3)', marginBottom: 30 },
+  btnDash: { backgroundColor: 'rgba(52, 152, 219, 0.3)', marginTop: 10 },
 });
