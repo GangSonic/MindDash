@@ -29,7 +29,6 @@ const MAP_LOGIC = [
   [1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1], // Fila 8
   [1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1], // Fila 9
   [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1], // Fila 10
-  
   [1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1], // Fila 11
   [1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1], // Fila 12
   [1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1], 
@@ -163,7 +162,7 @@ export default function GameScreen() {
     // Cargamos al jugador después (Capa superior)
     player: {
       body: {
-        position: { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 2 },
+        position: { x: (1*(SCREEN_WIDTH / 32)), y: (10*(SCREEN_HEIGHT / 21)) },
         velocity: { x: 0, y: 0 },
         radius: CONFIG.PLAYER_SIZE / 2,
         color: CONFIG.PLAYER_COLOR,
