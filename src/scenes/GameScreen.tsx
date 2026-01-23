@@ -10,11 +10,37 @@ const SCREEN_HEIGHT = Math.min(width, height);
 
 // === CONFIGURACIÓN ===
 const CONFIG = {
-  PLAYER_SIZE: 15,       // Ajustado un poco para que se vea bien en el mapa
-  PLAYER_SPEED: 6,
+  PLAYER_SIZE: 12,       // Ajustado un poco para que se vea bien en el mapa
+  PLAYER_SPEED: 3,
   PLAYER_COLOR: '#ff4444',
-  SAFE_BOTTOM_MARGIN: 95, 
+  SAFE_BOTTOM_MARGIN: 0, 
 };
+
+// Matriz de 20x13 basada en tamaño de imagen de fondo (800x533)
+const MAP_LOGIC = [
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Fila 0 (Muro superior)
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Fila 1
+  [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1], // Fila 2
+  [1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1], // Fila 3
+  [1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1], // Fila 4
+  [1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1], // Fila 5
+  [1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1], // Fila 6 (Entrada Izquierda/Derecha)
+  [1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1], // Fila 7
+  [1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1], // Fila 8
+  [1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1], // Fila 9
+  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1], // Fila 10
+  
+  [1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1], // Fila 11
+  [1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1], // Fila 12
+  [1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1], 
+  [1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1],
+  [1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1], 
+  [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1], 
+  [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1], 
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Fila 19 (Muro inferior)
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Fila 20
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Fila 21
+];
 
 // === TIPOS ===
 interface PlayerBody {
@@ -75,21 +101,42 @@ const PlayerRenderer = ({ body }: { body: PlayerBody }) => {
 };
 
 // === FÍSICA ===
-const PhysicsSystem = (entities: GameEntities, { time }: any) => {
+const PhysicsSystem = (entities: GameEntities, { time }:{time:any}) => {
   const player = entities.player.body;
-
-  player.position.x += player.velocity.x;
-  player.position.y += player.velocity.y;
-
-  // LÍMITES DE PANTALLA
-  if (player.position.x < 0) player.position.x = 0;
-  if (player.position.x > SCREEN_WIDTH - player.radius * 2) 
-      player.position.x = SCREEN_WIDTH - player.radius * 2;
-  if (player.position.y < 0) player.position.y = 0;
   
-  const floorLimit = SCREEN_HEIGHT - player.radius * 2 - CONFIG.SAFE_BOTTOM_MARGIN;
-  if (player.position.y > floorLimit) 
-      player.position.y = floorLimit;
+  // Si no hay velocidad, no calculamos nada
+  if (player.velocity.x === 0 && player.velocity.y === 0) return entities;
+
+  // Calculamos la posición futura
+  const nextX = player.position.x + player.velocity.x;
+  const nextY = player.position.y + player.velocity.y;
+
+  // Convertimos los píxeles actuales a coordenadas de nuestra matriz de 20x13
+  // Dividimos el ancho total entre 20 columnas y el alto total entre 13 filas
+  const cellWidth = SCREEN_WIDTH / 32;
+  const cellHeight = SCREEN_HEIGHT / 21;
+
+  const checkX = player.velocity.x > 0 ? nextX + player.radius * 2 : nextX;
+  const checkY = player.velocity.y > 0 ? nextY + player.radius * 2 : nextY;
+
+  const gridX = Math.floor(checkX / cellWidth);
+  const gridY = Math.floor(checkY / cellHeight);
+
+  
+  // Verificamos colisión
+  if (
+    gridY >= 0 && gridY < MAP_LOGIC.length &&
+    gridX >= 0 && gridX < MAP_LOGIC[0].length
+  ) {
+    if (MAP_LOGIC[gridY][gridX] === 0) {
+      // Si es camino (0), permitimos el movimiento
+      player.position.x = nextX;
+      player.position.y = nextY;
+    } else {
+      // Si es muro (1), detenemos la velocidad
+      player.velocity = { x: 0, y: 0 };
+    }
+  }
 
   return entities;
 };

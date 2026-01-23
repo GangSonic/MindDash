@@ -32,9 +32,18 @@ const Tab = createBottomTabNavigator();
 export default function App() {
   return (
     <NavigationContainer>
-      <Tab.Navigator>
-        <Tab.Screen name="Juego" component={GameScreen} />
-       
+      <Tab.Navigator
+        screenOptions={{
+          // Esto elimina el título "Juego" de arriba
+          headerShown: false,
+          // Esto elimina la barra de botones de abajo
+          tabBarStyle: { display: 'none' } 
+        }}
+        >
+        <Tab.Screen 
+          name="Juego" 
+          component={GameScreen} 
+        />
       </Tab.Navigator>
     </NavigationContainer>
   );
