@@ -1,44 +1,114 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from "react";
 // 1. Agregamos 'Image' a los imports
-import { View, StyleSheet, Dimensions, Text, Pressable, Image } from 'react-native';
-import { GameEngine } from 'react-native-game-engine';
+import {
+  View,
+  StyleSheet,
+  Dimensions,
+  Text,
+  Pressable,
+  Image,
+} from "react-native";
+import { GameEngine } from "react-native-game-engine";
 
 // === TRUCO PARA PANTALLA ===
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 const SCREEN_WIDTH = Math.max(width, height);
 const SCREEN_HEIGHT = Math.min(width, height);
 
 // === CONFIGURACIÓN ===
 const CONFIG = {
-  PLAYER_SIZE: 12,       // Ajustado un poco para que se vea bien en el mapa
+  PLAYER_SIZE: 12, // Ajustado un poco para que se vea bien en el mapa
   PLAYER_SPEED: 3,
-  PLAYER_COLOR: '#ff4444',
-  SAFE_BOTTOM_MARGIN: 0, 
+  PLAYER_COLOR: "#ff4444",
+  SAFE_BOTTOM_MARGIN: 0,
 };
 
 // Matriz de 20x13 basada en tamaño de imagen de fondo (800x533)
 const MAP_LOGIC = [
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Fila 0 (Muro superior)
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Fila 1
-  [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1], // Fila 2
-  [1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1], // Fila 3
-  [1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1], // Fila 4
-  [1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1], // Fila 5
-  [1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1], // Fila 6 (Entrada Izquierda/Derecha)
-  [1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1], // Fila 7
-  [1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1], // Fila 8
-  [1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1], // Fila 9
-  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1], // Fila 10
-  [1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1], // Fila 11
-  [1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1], // Fila 12
-  [1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1], 
-  [1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1],
-  [1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1], 
-  [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1], 
-  [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1], 
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Fila 19 (Muro inferior)
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Fila 20
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Fila 21
+  [
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1,
+  ], // Fila 0 (Muro superior)
+  [
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1,
+  ], // Fila 1
+  [
+    1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1,
+    1, 0, 0, 0, 0, 1, 1,
+  ], // Fila 2
+  [
+    1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1,
+    1, 1, 1, 0, 0, 1, 1,
+  ], // Fila 3
+  [
+    1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+    0, 0, 1, 0, 0, 1, 1,
+  ], // Fila 4
+  [
+    1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0,
+    0, 0, 0, 0, 0, 1, 1,
+  ], // Fila 5
+  [
+    1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+    0, 1, 1, 1, 1, 1, 1,
+  ], // Fila 6 (Entrada Izquierda/Derecha)
+  [
+    1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0,
+    0, 1, 1, 1, 1, 1, 1,
+  ], // Fila 7
+  [
+    1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0,
+    0, 1, 0, 0, 0, 1, 1,
+  ], // Fila 8
+  [
+    1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 1, 1,
+  ], // Fila 9
+  [
+    1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
+    1, 1, 0, 0, 0, 0, 1,
+  ], // Fila 10
+  [
+    1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
+    1, 1, 0, 0, 0, 0, 1,
+  ], // Fila 11
+  [
+    1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+    0, 0, 0, 0, 0, 1, 1,
+  ], // Fila 12
+  [
+    1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+    0, 0, 0, 0, 0, 1, 1,
+  ],
+  [
+    1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+    0, 1, 1, 1, 0, 1, 1,
+  ],
+  [
+    1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1,
+    0, 0, 0, 0, 0, 1, 1,
+  ],
+  [
+    1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 1, 1,
+  ],
+  [
+    1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 1, 1,
+  ],
+  [
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1,
+  ], // Fila 19 (Muro inferior)
+  [
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1,
+  ], // Fila 20
+  [
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1,
+  ], // Fila 21
 ];
 
 // === TIPOS ===
@@ -63,14 +133,14 @@ const MapRenderer = () => {
   return (
     <Image
       // Asegúrate de que el nombre coincida con tu archivo en 'assets'
-      source={require('../../assets/mapa_bosque.png')} 
+      source={require("../../assets/mapa_bosque.png")}
       style={{
-        position: 'absolute',
+        position: "absolute",
         top: 0,
         left: 0,
-        width: SCREEN_WIDTH,   // Estira la imagen al ancho de la pantalla
+        width: SCREEN_WIDTH, // Estira la imagen al ancho de la pantalla
         height: SCREEN_HEIGHT, // Estira la imagen al alto de la pantalla
-        resizeMode: 'stretch', // 'stretch' ajusta, 'cover' recorta si es necesario
+        resizeMode: "stretch", // 'stretch' ajusta, 'cover' recorta si es necesario
         zIndex: -1, // Se asegura de estar DETRÁS del jugador
       }}
     />
@@ -79,30 +149,70 @@ const MapRenderer = () => {
 
 // === RENDERER DEL JUGADOR ===
 const PlayerRenderer = ({ body }: { body: PlayerBody }) => {
+  const [frame, setFrame] = React.useState(0);
+  const [isMoving, setIsMoving] = React.useState(false);
+  const [direction, setDirection] = React.useState("right");
+
+  //Cargar sprites
+  const idleFrames = [require("../../assets/player/idle_1.png")];
+
+  const runFrames = [
+    require("../../assets/player/walk_1.png"),
+    require("../../assets/player/walk_2.png"),
+    require("../../assets/player/walk_3.png"),
+    require("../../assets/player/walk_5.png"),
+    require("../../assets/player/walk_4.png"),
+    require("../../assets/player/walk_5.png"),
+    require("../../assets/player/walk_6_dash.png"),
+    require("../../assets/player/walk_5.png"),
+  ];
+
+  let frames = idleFrames;
+
+  if (isMoving) {
+    frames = runFrames;
+  }
+
+  //const frames = isMoving ? runFrames : idleFrames;
+
+  React.useEffect(() => {
+    if (body.velocity.x !== 0 || body.velocity.y !== 0) {
+      setIsMoving(true);
+      if (body.velocity.x > 0) setDirection("right");
+      else if (body.velocity.x < 0) setDirection("left");
+    } else {
+      setIsMoving(false);
+    }
+  }, [body.velocity.x, body.velocity.y]);
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setFrame((prev) => (prev + 1) % frames.length);
+    }, 70);
+
+    return () => clearInterval(interval);
+  }, [frames.length]);
+
   return (
-    <View
+    <Image
+      source={frames[frame]}
       style={{
-        position: 'absolute',
+        position: "absolute",
         left: body.position.x,
         top: body.position.y,
-        width: body.radius * 2,
-        height: body.radius * 2,
-        borderRadius: body.radius,
-        backgroundColor: body.color,
-        borderWidth: 2,
-        borderColor: '#fff',
-        shadowColor: body.color,
-        shadowOpacity: 0.8,
-        elevation: 5,
+        width: body.radius * 7,
+        height: body.radius * 7,
+        resizeMode: "contain",
+        transform: [{ scaleX: direction === "left" ? -1 : 1 }],
       }}
     />
   );
 };
 
 // === FÍSICA ===
-const PhysicsSystem = (entities: GameEntities, { time }:{time:any}) => {
+const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
   const player = entities.player.body;
-  
+
   // Si no hay velocidad, no calculamos nada
   if (player.velocity.x === 0 && player.velocity.y === 0) return entities;
 
@@ -121,11 +231,12 @@ const PhysicsSystem = (entities: GameEntities, { time }:{time:any}) => {
   const gridX = Math.floor(checkX / cellWidth);
   const gridY = Math.floor(checkY / cellHeight);
 
-  
   // Verificamos colisión
   if (
-    gridY >= 0 && gridY < MAP_LOGIC.length &&
-    gridX >= 0 && gridX < MAP_LOGIC[0].length
+    gridY >= 0 &&
+    gridY < MAP_LOGIC.length &&
+    gridX >= 0 &&
+    gridX < MAP_LOGIC[0].length
   ) {
     if (MAP_LOGIC[gridY][gridX] === 0) {
       // Si es camino (0), permitimos el movimiento
@@ -157,12 +268,12 @@ export default function GameScreen() {
   const initialEntities: GameEntities = {
     // 4. Cargamos el mapa primero (Fondo)
     map: {
-        renderer: MapRenderer,
+      renderer: MapRenderer,
     },
     // Cargamos al jugador después (Capa superior)
     player: {
       body: {
-        position: { x: (1*(SCREEN_WIDTH / 32)), y: (10*(SCREEN_HEIGHT / 21)) },
+        position: { x: 1 * (SCREEN_WIDTH / 32), y: 10 * (SCREEN_HEIGHT / 21) },
         velocity: { x: 0, y: 0 },
         radius: CONFIG.PLAYER_SIZE / 2,
         color: CONFIG.PLAYER_COLOR,
@@ -172,12 +283,20 @@ export default function GameScreen() {
   };
 
   // === LÓGICA DE BOTONES ===
-  const startMove = (direction: 'up' | 'down' | 'left' | 'right') => {
+  const startMove = (direction: "up" | "down" | "left" | "right") => {
     switch (direction) {
-      case 'up': velocityRef.current = { x: 0, y: -CONFIG.PLAYER_SPEED }; break;
-      case 'down': velocityRef.current = { x: 0, y: CONFIG.PLAYER_SPEED }; break;
-      case 'left': velocityRef.current = { x: -CONFIG.PLAYER_SPEED, y: 0 }; break;
-      case 'right': velocityRef.current = { x: CONFIG.PLAYER_SPEED, y: 0 }; break;
+      case "up":
+        velocityRef.current = { x: 0, y: -CONFIG.PLAYER_SPEED };
+        break;
+      case "down":
+        velocityRef.current = { x: 0, y: CONFIG.PLAYER_SPEED };
+        break;
+      case "left":
+        velocityRef.current = { x: -CONFIG.PLAYER_SPEED, y: 0 };
+        break;
+      case "right":
+        velocityRef.current = { x: CONFIG.PLAYER_SPEED, y: 0 };
+        break;
     }
   };
 
@@ -190,7 +309,7 @@ export default function GameScreen() {
       <GameEngine
         ref={gameEngineRef}
         style={styles.gameContainer}
-        systems={[InputSystem, PhysicsSystem]} 
+        systems={[InputSystem, PhysicsSystem]}
         entities={initialEntities}
         running={running}
       />
@@ -198,11 +317,51 @@ export default function GameScreen() {
       <View style={styles.controlsArea}>
         {/* CRUCETA (D-PAD) */}
         <View style={styles.dpadContainer}>
-            <Pressable style={({pressed}) => [styles.dpadBtn, styles.btnUp, pressed && styles.btnPressed]} onPressIn={() => startMove('up')} onPressOut={stopMove}><Text style={styles.arrow}>▲</Text></Pressable>
-            <Pressable style={({pressed}) => [styles.dpadBtn, styles.btnDown, pressed && styles.btnPressed]} onPressIn={() => startMove('down')} onPressOut={stopMove}><Text style={styles.arrow}>▼</Text></Pressable>
-            <Pressable style={({pressed}) => [styles.dpadBtn, styles.btnLeft, pressed && styles.btnPressed]} onPressIn={() => startMove('left')} onPressOut={stopMove}><Text style={styles.arrow}>◀</Text></Pressable>
-            <Pressable style={({pressed}) => [styles.dpadBtn, styles.btnRight, pressed && styles.btnPressed]} onPressIn={() => startMove('right')} onPressOut={stopMove}><Text style={styles.arrow}>▶</Text></Pressable>
-            <View style={styles.dpadCenter} />
+          <Pressable
+            style={({ pressed }) => [
+              styles.dpadBtn,
+              styles.btnUp,
+              pressed && styles.btnPressed,
+            ]}
+            onPressIn={() => startMove("up")}
+            onPressOut={stopMove}
+          >
+            <Text style={styles.arrow}>▲</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.dpadBtn,
+              styles.btnDown,
+              pressed && styles.btnPressed,
+            ]}
+            onPressIn={() => startMove("down")}
+            onPressOut={stopMove}
+          >
+            <Text style={styles.arrow}>▼</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.dpadBtn,
+              styles.btnLeft,
+              pressed && styles.btnPressed,
+            ]}
+            onPressIn={() => startMove("left")}
+            onPressOut={stopMove}
+          >
+            <Text style={styles.arrow}>◀</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.dpadBtn,
+              styles.btnRight,
+              pressed && styles.btnPressed,
+            ]}
+            onPressIn={() => startMove("right")}
+            onPressOut={stopMove}
+          >
+            <Text style={styles.arrow}>▶</Text>
+          </Pressable>
+          <View style={styles.dpadCenter} />
         </View>
 
         {/* BOTONES DE ACCIÓN */}
@@ -218,36 +377,90 @@ export default function GameScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000', // Fondo negro por si la imagen no carga
+    backgroundColor: "#000", // Fondo negro por si la imagen no carga
   },
   gameContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   controlsArea: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
     paddingHorizontal: 50,
     paddingBottom: 30,
   },
-  dpadContainer: { width: 150, height: 150, position: 'relative' },
-  dpadBtn: { position: 'absolute', backgroundColor: 'rgba(80, 80, 80, 0.6)', justifyContent: 'center', alignItems: 'center', borderRadius: 5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  btnPressed: { backgroundColor: 'rgba(120, 120, 120, 0.9)' },
-  btnUp: { top: 0, left: 50, width: 50, height: 50, borderTopLeftRadius: 8, borderTopRightRadius: 8 },
-  btnDown: { bottom: 0, left: 50, width: 50, height: 50, borderBottomLeftRadius: 8, borderBottomRightRadius: 8 },
-  btnLeft: { top: 50, left: 0, width: 50, height: 50, borderTopLeftRadius: 8, borderBottomLeftRadius: 8 },
-  btnRight: { top: 50, right: 0, width: 50, height: 50, borderTopRightRadius: 8, borderBottomRightRadius: 8 },
-  dpadCenter: { position: 'absolute', top: 50, left: 50, width: 50, height: 50, backgroundColor: 'rgba(60, 60, 60, 1)', zIndex: -1 },
-  arrow: { color: 'rgba(255, 255, 255, 0.6)', fontSize: 20, fontWeight: 'bold' },
-  actionButtons: { flexDirection: 'row', gap: 25, alignItems: 'center' },
-  btn: { width: 75, height: 75, borderRadius: 37.5, borderWidth: 2, borderColor: 'rgba(255, 255, 255, 0.3)' },
-  btnAttack: { backgroundColor: 'rgba(231, 76, 60, 0.3)', marginBottom: 30 },
-  btnDash: { backgroundColor: 'rgba(52, 152, 219, 0.3)', marginTop: 10 },
+  dpadContainer: { width: 150, height: 150, position: "relative" },
+  dpadBtn: {
+    position: "absolute",
+    backgroundColor: "rgba(80, 80, 80, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  btnPressed: { backgroundColor: "rgba(120, 120, 120, 0.9)" },
+  btnUp: {
+    top: 0,
+    left: 50,
+    width: 50,
+    height: 50,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+  btnDown: {
+    bottom: 0,
+    left: 50,
+    width: 50,
+    height: 50,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  btnLeft: {
+    top: 50,
+    left: 0,
+    width: 50,
+    height: 50,
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
+  },
+  btnRight: {
+    top: 50,
+    right: 0,
+    width: 50,
+    height: 50,
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  dpadCenter: {
+    position: "absolute",
+    top: 50,
+    left: 50,
+    width: 50,
+    height: 50,
+    backgroundColor: "rgba(60, 60, 60, 1)",
+    zIndex: -1,
+  },
+  arrow: {
+    color: "rgba(255, 255, 255, 0.6)",
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  actionButtons: { flexDirection: "row", gap: 25, alignItems: "center" },
+  btn: {
+    width: 75,
+    height: 75,
+    borderRadius: 37.5,
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+  },
+  btnAttack: { backgroundColor: "rgba(231, 76, 60, 0.3)", marginBottom: 30 },
+  btnDash: { backgroundColor: "rgba(52, 152, 219, 0.3)", marginTop: 10 },
 });
