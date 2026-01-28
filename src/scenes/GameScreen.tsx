@@ -125,9 +125,10 @@ const MapRenderer = () => {
 };
 
 // === RENDERER DEL JUGADOR ===
+// === RENDERER DEL JUGADOR ===
 const PlayerRenderer = ({ body }: { body: PlayerBody }) => {
   const { state, direction, frameIndex } = body.animation;
-  const { x } = body.velocity;
+  const { x, y } = body.velocity;
 
   // 1. DETERMINAR FILA
   let row = 1; 
@@ -136,11 +137,44 @@ const PlayerRenderer = ({ body }: { body: PlayerBody }) => {
 
   // 2. LÓGICA DE COLUMNA
   let currentFrame = 0;
+  let shouldFlip = false;
+  
   if (state === "attack") {
-    currentFrame = frameIndex % 4;
+    currentFrame = (frameIndex % 2);
+    shouldFlip = direction === "left";
   } else if (state === "run") {
-    // Si camina lateralmente alternamos 2 frames, si no, frame 0
-    currentFrame = (Math.abs(x) > 0.1) ? (frameIndex % 2) : 0;
+    // Si se mueve más horizontalmente
+    if (Math.abs(x) > Math.abs(y) && Math.abs(x) > 0.1) {
+      if (direction === "right") {
+        // DERECHA: animar con frames 0 y 1
+        currentFrame = (frameIndex % 2);
+        shouldFlip = false;
+      } else {
+        // IZQUIERDA: usar el frame de IDLE (de frente)
+        row = 1;
+        currentFrame = 1;
+        shouldFlip = false;
+      }
+    } 
+    // Si se mueve más verticalmente
+    else if (Math.abs(y) > 0.1) {
+      if (y < 0) {
+        // Caminar ARRIBA: usar frames 2 y 3 (de espalda)
+        currentFrame = 2 + (frameIndex % 2);
+        shouldFlip = false;
+      } else {
+        // Caminar ABAJO: usar frame idle (de frente)
+        row = 1;
+        currentFrame = 1;
+        shouldFlip = false;
+      }
+    } else {
+      currentFrame = 0;
+    }
+  } else {
+    // Idle: frame 1 de la fila 1 (de frente)
+    currentFrame = 1;
+    shouldFlip = false;
   }
 
   const baseSize = body.radius * 7;
@@ -150,20 +184,22 @@ const PlayerRenderer = ({ body }: { body: PlayerBody }) => {
   return (
     <View style={{
       position: "absolute",
-      left: body.position.x, top: body.position.y,
-      width: displayWidth, height: displayHeight,
+      left: body.position.x, 
+      top: body.position.y,
+      width: displayWidth, 
+      height: displayHeight,
       overflow: 'hidden',
     }}>
       <Image
         source={require("../../assets/player/sprite_sheet_player.png")}
         style={{
-          width: displayWidth * 4, height: displayHeight * 3,
+          width: displayWidth * 4, 
+          height: displayHeight * 3,
           position: 'absolute',
           left: -currentFrame * displayWidth,
           top: -row * displayHeight,
           resizeMode: 'stretch',
-          // CORRECCIÓN: Usamos scaleX para voltear, pero aseguramos el render
-          transform: [{ scaleX: direction === "left" ? -1 : 1 }],
+          transform: [{ scaleX: shouldFlip ? -1 : 1 }],
         }}
       />
     </View>
