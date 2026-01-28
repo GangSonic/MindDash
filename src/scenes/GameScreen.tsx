@@ -89,6 +89,7 @@ interface PlayerBody {
     facing: { x: number; y: number }; // Hacia dónde miramos para impulsarnos
     requested: boolean; // Si se presionó el botón
   };
+  health: number;
 }
 
 interface GameEntities {
@@ -97,6 +98,10 @@ interface GameEntities {
     body: PlayerBody;
     renderer: React.ComponentType<any>;
   };
+  enemy: {
+    body: any; 
+    renderer: React.ComponentType<any>;
+  }
 }
 
 // === RENDERER DEL MAPA ===
@@ -141,10 +146,39 @@ const PlayerRenderer = ({ body }: { body: PlayerBody }) => {
   );
 };
 
+// === COMPONENTE DE VIDAS ===
+const HealthBar = ({ health }: { health: number }) => {
+  // Cada corazón representa 20 de vida (5 corazones = 100 HP)
+  const numHearts = 5;
+  const hearts = [];
+
+  for (let i = 0; i < numHearts; i++) {
+    const heartValue = (i + 1) * 20;
+    // Lógica simple: si la vida es mayor al valor del corazón, está lleno
+    const isFull = health >= heartValue;
+    const isEmpty = health <= heartValue - 20;
+
+    hearts.push(
+      <View key={i} style={styles.heartWrapper}>
+        <Image
+          source={require("../../assets/life/heart_pixel.png")} 
+          style={[
+            styles.heartImage,
+            isEmpty && { opacity: 0.3, tintColor: 'gray' }, // Se ve vacío/gris
+            !isFull && !isEmpty && { tintColor: '#ff8888' } // "Medio" lleno (opcional)
+          ]}
+        />
+      </View>
+    );
+  }
+
+  return <View style={styles.healthContainer}>{hearts}</View>;
+};
+
 // === FÍSICA Y ANIMACIÓN (EL CEREBRO) ===
 const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
   const player = entities.player.body;
-
+ 
   // --- 1. GESTIÓN DEL DASH ---
   
   // Actualizar cooldown (enfriamiento)
@@ -241,11 +275,55 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
     player.animation.frameIndex++;
   }
 
+  //== Fisica del enemigo == 
+
+  if (!entities.enemy || !entities.enemy.body) {
+    return entities;
+  }
+  const enemy = entities.enemy.body;
+  const speed = enemy.speed || 0.6; 
+
+  const dx = player.position.x - enemy.position.x;
+  const dy = player.position.y - enemy.position.y;
+  const distance = Math.hypot(dx, dy);
+
+  // Solo movemos si no estamos "encima" del jugador
+  if (distance > 12) {
+    const angle = Math.atan2(dy, dx);
+    
+    // Calculamos la siguiente posición potencial
+    const nextX = enemy.position.x + Math.cos(angle) * speed;
+    const nextY = enemy.position.y + Math.sin(angle) * speed;
+
+    // Colision usando el punto Central del enemigo 
+    const gridX = Math.floor((nextX + enemy.radius) / cellWidth);
+    const gridY = Math.floor((nextY + enemy.radius) / cellHeight);
+
+    // Verificamos si la celda es camino (0)
+    if (MAP_LOGIC[gridY] && MAP_LOGIC[gridY][gridX] === 0) {
+      enemy.position.x = nextX;
+      enemy.position.y = nextY;
+    } else {
+      // Si hay colisión, el enemigo no se mueve// Si se bloquea, intentamos mover solo en X o solo en Y (deslizamiento)
+    const canMoveX = MAP_LOGIC[Math.floor((enemy.position.y + enemy.radius)/cellHeight)][Math.floor((nextX + enemy.radius)/cellWidth)] === 0;
+    const canMoveY = MAP_LOGIC[Math.floor((nextY + enemy.radius)/cellHeight)][Math.floor((enemy.position.x + enemy.radius)/cellWidth)] === 0;
+    
+      if (canMoveX) enemy.position.x = nextX;
+      else if (canMoveY) enemy.position.y = nextY;
+    }  
+  }
+    if (distance < 18) { 
+    player.health -= 0.3; // Daño por contacto real
+    if (player.health < 0) player.health = 0;
+    //console.log("personaje herido! HP:", Math.round(player.health));
+  }
+
   return entities;
 };
 
 // === PANTALLA PRINCIPAL ===
 export default function GameScreen() {
+  const [playerHP, setPlayerHP] = useState(100);
   const [running, setRunning] = useState(true);
   const gameEngineRef = useRef<GameEngine>(null);
   const velocityRef = useRef({ x: 0, y: 0 });
@@ -261,6 +339,11 @@ export default function GameScreen() {
       entities.player.body.dash.requested = true;
       dashSignalRef.current = false; // Resetear señal
     }
+
+    //logica vida (corazones) 
+    if (entities.player.body.health !== playerHP) {
+    setPlayerHP(entities.player.body.health);
+  }
     
     return entities;
   };
@@ -286,10 +369,34 @@ export default function GameScreen() {
           cooldown: 0,
           facing: { x: 1, y: 0 }, // Empieza mirando a la derecha
           requested: false,
-        }
+        },
+        health: 100,
+        
       },
       renderer: PlayerRenderer,
     },
+    //enemigo 
+    enemy: {
+      body: {
+        position: { x: 15* (SCREEN_WIDTH / 32), y: 9 * (SCREEN_HEIGHT / 21) },
+        velocity: { x: 0, y: 0 },
+        radius: CONFIG.PLAYER_SIZE / 2,
+        speed: 0.6, // Un poco más lento para escapar
+        type: "near", // Lo identificamos como el villano fácil
+        health: 1, 
+      },
+      renderer: (props: any) => (
+        <View style={{
+          position: 'absolute',
+          left: props.body.position.x,
+          top: props.body.position.y,
+          width: props.body.radius * 4,
+          height: props.body.radius * 4,
+          backgroundColor: 'green', // Color temporal del villano fácil
+          borderRadius: 10
+        }} />
+      )
+    },  
   };
 
   const startMove = (direction: "up" | "down" | "left" | "right") => {
@@ -318,6 +425,10 @@ export default function GameScreen() {
         entities={initialEntities}
         running={running}
       />
+
+      <View style={styles.hudContainer}>
+      <HealthBar health={playerHP} />
+    </View>
       <View style={styles.controlsArea}>
         {/* CRUCETA */}
         <View style={styles.dpadContainer}>
@@ -358,4 +469,33 @@ const styles = StyleSheet.create({
   btn: { width: 75, height: 75, borderRadius: 37.5, borderWidth: 2, borderColor: "rgba(255, 255, 255, 0.3)" },
   btnAttack: { backgroundColor: "rgba(231, 76, 60, 0.3)", marginBottom: 30 },
   btnDash: { backgroundColor: "rgba(52, 152, 219, 0.3)", marginTop: 10 },
+  hudContainer: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+  healthContainer: {
+    flexDirection: 'row',
+    gap: 5,
+  },
+  heartWrapper: {
+    width: 30,
+    height: 30,
+  },
+  heartImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
+  },
+  hpTextLabel: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginTop: 5,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: {width: -1, height: 1},
+    textShadowRadius: 10
+  },
 });
