@@ -25,7 +25,7 @@ const CONFIG = {
   DASH_DURATION: 200,    // Duración en milisegundos
   DASH_COOLDOWN: 5000,   // Tiempo de espera (1 segundo)
   
-  ANIMATION_SPEED: 70,
+  ANIMATION_SPEED: 110,
 };
 
 // === CARGA DE IMÁGENES ===
@@ -76,7 +76,7 @@ interface PlayerBody {
   color: string;
   // Variables para la lógica del juego y animación
   animation: {
-    state: "idle" | "run" | "dash"; 
+    state: "idle" | "run" | "dash" | "attack"; 
     direction: "left" | "right";
     frameIndex: number;
     timer: number;
@@ -89,8 +89,14 @@ interface PlayerBody {
     facing: { x: number; y: number }; // Hacia dónde miramos para impulsarnos
     requested: boolean; // Si se presionó el botón
   };
+  attackRequested: boolean;
   health: number;
 }
+
+const SPRITE_SIZE = {
+  width: 100, // Ajusta según el tamaño real de un solo muñequito en tu PNG
+  height: 100
+};
 
 interface GameEntities {
   map: { renderer: React.ComponentType<any> };
@@ -121,28 +127,46 @@ const MapRenderer = () => {
 // === RENDERER DEL JUGADOR ===
 const PlayerRenderer = ({ body }: { body: PlayerBody }) => {
   const { state, direction, frameIndex } = body.animation;
-  
-  // Elegimos la lista de imágenes según el estado
-  let currentSpriteList = SPRITES.idle;
-  if (state === "run") currentSpriteList = SPRITES.run;
-  if (state === "dash") currentSpriteList = SPRITES.dash;
-  
-  const safeIndex = frameIndex % currentSpriteList.length;
-  const imageToDraw = currentSpriteList[safeIndex];
+  const { x } = body.velocity;
+
+  // 1. DETERMINAR FILA
+  let row = 1; 
+  if (state === "attack") row = 2;
+  else if (state === "run") row = 0;
+
+  // 2. LÓGICA DE COLUMNA
+  let currentFrame = 0;
+  if (state === "attack") {
+    currentFrame = frameIndex % 4;
+  } else if (state === "run") {
+    // Si camina lateralmente alternamos 2 frames, si no, frame 0
+    currentFrame = (Math.abs(x) > 0.1) ? (frameIndex % 2) : 0;
+  }
+
+  const baseSize = body.radius * 7;
+  const displayWidth = baseSize;
+  const displayHeight = baseSize * (177 / 117); 
 
   return (
-    <Image
-      source={imageToDraw}
-      style={{
-        position: "absolute",
-        left: body.position.x,
-        top: body.position.y,
-        width: body.radius * 7,
-        height: body.radius * 7,
-        resizeMode: "contain",
-        transform: [{ scaleX: direction === "left" ? -1 : 1 }],
-      }}
-    />
+    <View style={{
+      position: "absolute",
+      left: body.position.x, top: body.position.y,
+      width: displayWidth, height: displayHeight,
+      overflow: 'hidden',
+    }}>
+      <Image
+        source={require("../../assets/player/sprite_sheet_player.png")}
+        style={{
+          width: displayWidth * 4, height: displayHeight * 3,
+          position: 'absolute',
+          left: -currentFrame * displayWidth,
+          top: -row * displayHeight,
+          resizeMode: 'stretch',
+          // CORRECCIÓN: Usamos scaleX para voltear, pero aseguramos el render
+          transform: [{ scaleX: direction === "left" ? -1 : 1 }],
+        }}
+      />
+    </View>
   );
 };
 
@@ -177,8 +201,13 @@ const HealthBar = ({ health }: { health: number }) => {
 
 // === FÍSICA Y ANIMACIÓN (EL CEREBRO) ===
 const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
+  if (!time || !time.delta) {
+    return entities;
+  }
+
   const player = entities.player.body;
- 
+  const enemy = entities.enemy?.body;
+
   // --- 1. GESTIÓN DEL DASH ---
   
   // Actualizar cooldown (enfriamiento)
@@ -238,7 +267,6 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
   const gridX = Math.floor(checkX / cellWidth);
   const gridY = Math.floor(checkY / cellHeight);
 
-  // Aplicar movimiento si no hay pared
   if (finalVelocity.x !== 0 || finalVelocity.y !== 0) {
     if (
       gridY >= 0 && gridY < MAP_LOGIC.length &&
@@ -248,7 +276,6 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
       player.position.x = nextX;
       player.position.y = nextY;
     } else {
-      // Si choca durante un dash, detener el dash inmediatamente
       if (player.dash.isDashing) {
         player.dash.isDashing = false;
       }
@@ -258,65 +285,87 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
   // --- 3. ANIMACIÓN ---
   const isMoving = finalVelocity.x !== 0 || finalVelocity.y !== 0;
 
-  if (!player.dash.isDashing) {
+  if (!player.dash.isDashing && player.animation.state !== "attack") {
     if (isMoving) {
       player.animation.state = "run";
+      player.animation.timer += time.delta;
       if (finalVelocity.x > 0) player.animation.direction = "right";
       if (finalVelocity.x < 0) player.animation.direction = "left";
     } else {
       player.animation.state = "idle";
+      player.animation.frameIndex = 0;
     }
   }
 
-  // Timer de frames
   player.animation.timer += time.delta;
   if (player.animation.timer >= CONFIG.ANIMATION_SPEED) {
     player.animation.timer = 0;
     player.animation.frameIndex++;
   }
 
-  //== Fisica del enemigo == 
-
-  if (!entities.enemy || !entities.enemy.body) {
+  // --- 4. FÍSICA DEL ENEMIGO ---
+  if (!enemy) {
     return entities;
   }
-  const enemy = entities.enemy.body;
-  const speed = enemy.speed || 0.6; 
 
+  const speed = enemy.speed || 0.6;
   const dx = player.position.x - enemy.position.x;
   const dy = player.position.y - enemy.position.y;
   const distance = Math.hypot(dx, dy);
 
-  // Solo movemos si no estamos "encima" del jugador
   if (distance > 12) {
     const angle = Math.atan2(dy, dx);
-    
-    // Calculamos la siguiente posición potencial
     const nextX = enemy.position.x + Math.cos(angle) * speed;
     const nextY = enemy.position.y + Math.sin(angle) * speed;
 
-    // Colision usando el punto Central del enemigo 
     const gridX = Math.floor((nextX + enemy.radius) / cellWidth);
     const gridY = Math.floor((nextY + enemy.radius) / cellHeight);
 
-    // Verificamos si la celda es camino (0)
     if (MAP_LOGIC[gridY] && MAP_LOGIC[gridY][gridX] === 0) {
       enemy.position.x = nextX;
       enemy.position.y = nextY;
     } else {
-      // Si hay colisión, el enemigo no se mueve// Si se bloquea, intentamos mover solo en X o solo en Y (deslizamiento)
-    const canMoveX = MAP_LOGIC[Math.floor((enemy.position.y + enemy.radius)/cellHeight)][Math.floor((nextX + enemy.radius)/cellWidth)] === 0;
-    const canMoveY = MAP_LOGIC[Math.floor((nextY + enemy.radius)/cellHeight)][Math.floor((enemy.position.x + enemy.radius)/cellWidth)] === 0;
-    
+      const canMoveX = MAP_LOGIC[Math.floor((enemy.position.y + enemy.radius)/cellHeight)]?.[Math.floor((nextX + enemy.radius)/cellWidth)] === 0;
+      const canMoveY = MAP_LOGIC[Math.floor((nextY + enemy.radius)/cellHeight)]?.[Math.floor((enemy.position.x + enemy.radius)/cellWidth)] === 0;
+      
       if (canMoveX) enemy.position.x = nextX;
       else if (canMoveY) enemy.position.y = nextY;
     }  
   }
-    if (distance < 18) { 
-    player.health -= 0.3; // Daño por contacto real
+
+  // Daño por contacto
+  if (distance < 18) { 
+    player.health -= 0.3;
     if (player.health < 0) player.health = 0;
-    //console.log("personaje herido! HP:", Math.round(player.health));
   }
+
+  // --- 5. LÓGICA DE COMBATE ---
+  if (player.attackRequested) {
+  // Si el enemigo existe y está vivo
+  if (enemy && enemy.position.x !== -1000) {
+    const dx = enemy.position.x - player.position.x;
+    const dy = enemy.position.y - player.position.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist < 50) {
+      const angle = Math.atan2(dy, dx);
+      enemy.position.x += Math.cos(angle) * 40;
+      enemy.position.y += Math.sin(angle) * 40;
+      enemy.health -= 0.4;
+
+      if (enemy.health <= 0) {
+        enemy.position = { x: -1000, y: -1000 };
+      }
+    }
+  }
+  
+  // SIEMPRE completar la animación de ataque, independientemente del enemigo
+  if (player.animation.frameIndex >= 3) {
+    player.attackRequested = false;
+    player.animation.state = "idle";
+    player.animation.frameIndex = 0;
+  }
+}
 
   return entities;
 };
@@ -328,22 +377,30 @@ export default function GameScreen() {
   const gameEngineRef = useRef<GameEngine>(null);
   const velocityRef = useRef({ x: 0, y: 0 });
   const dashSignalRef = useRef(false); // Para comunicar el botón con el juego
+  const attackSignalRef = useRef(false);
 
   const InputSystem = (entities: GameEntities) => {
-    // Pasar input de movimiento
-    entities.player.body.velocity.x = velocityRef.current.x;
-    entities.player.body.velocity.y = velocityRef.current.y;
+    const player = entities.player.body;
+    player.velocity.x = velocityRef.current.x;
+    player.velocity.y = velocityRef.current.y;
     
-    // Pasar input de Dash
+    // Señal de Dash
     if (dashSignalRef.current) {
-      entities.player.body.dash.requested = true;
-      dashSignalRef.current = false; // Resetear señal
+      player.dash.requested = true;
+      dashSignalRef.current = false;
     }
 
-    //logica vida (corazones) 
-    if (entities.player.body.health !== playerHP) {
-    setPlayerHP(entities.player.body.health);
-  }
+    // Señal de Ataque
+    if (attackSignalRef.current) {
+      player.animation.state = "attack";
+      player.attackRequested = true;
+      attackSignalRef.current = false;
+    }
+
+    // Sincronizar corazones
+    if (player.health !== playerHP) {
+      setPlayerHP(player.health);
+    }
     
     return entities;
   };
@@ -371,6 +428,7 @@ export default function GameScreen() {
           requested: false,
         },
         health: 100,
+        attackRequested: false,
         
       },
       renderer: PlayerRenderer,
@@ -416,6 +474,11 @@ export default function GameScreen() {
     dashSignalRef.current = true;
   };
 
+  //Ataque del usuario 
+  const handleAttackPress = () => {
+  attackSignalRef.current = true;
+};
+
   return (
     <View style={styles.container}>
       <GameEngine
@@ -439,8 +502,12 @@ export default function GameScreen() {
           <View style={styles.dpadCenter} />
         </View>
         <View style={styles.actionButtons}>
-          <View style={[styles.btn, styles.btnAttack]} />
-          
+          {/* BOTÓN DE ATAQUE (ROJO) */}
+          <Pressable 
+            style={({ pressed }) => [styles.btn, styles.btnAttack, pressed && styles.btnPressed]} 
+            onPress={handleAttackPress} 
+          />
+
           {/* BOTÓN DE DASH (AZUL) */}
           <Pressable 
             style={({ pressed }) => [styles.btn, styles.btnDash, pressed && styles.btnPressed]} 
