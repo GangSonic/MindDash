@@ -177,7 +177,7 @@ const PlayerRenderer = ({ body }: { body: PlayerBody }) => {
     shouldFlip = false;
   }
 
-  const baseSize = body.radius * 7;
+  const baseSize = body.radius * 4;
   const displayWidth = baseSize;
   const displayHeight = baseSize * (177 / 117); 
 
