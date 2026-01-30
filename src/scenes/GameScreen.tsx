@@ -14,6 +14,7 @@ const { width, height } = Dimensions.get("window");
 const SCREEN_WIDTH = Math.max(width, height);
 const SCREEN_HEIGHT = Math.min(width, height);
 
+
 // === CONFIGURACIÓN ===
 const CONFIG = {
   PLAYER_SIZE: 12,
@@ -91,7 +92,12 @@ interface PlayerBody {
   };
   attackRequested: boolean;
   health: number;
+
+  kills: number;        // Contador de enemigos eliminados
+  survivalTime: number; // Tiempo sobreviviendo (ms)
 }
+
+
 
 const SPRITE_SIZE = {
   width: 100, // Ajusta según el tamaño real de un solo muñequito en tu PNG
@@ -124,7 +130,6 @@ const MapRenderer = () => {
   );
 };
 
-// === RENDERER DEL JUGADOR ===
 // === RENDERER DEL JUGADOR ===
 const PlayerRenderer = ({ body }: { body: PlayerBody }) => {
   const { state, direction, frameIndex } = body.animation;
@@ -243,6 +248,9 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
 
   const player = entities.player.body;
   const enemy = entities.enemy?.body;
+  
+  // 1. CONTAR TIEMPO: Al principio de la función
+  player.survivalTime += time.delta;
 
   // --- 1. GESTIÓN DEL DASH ---
   
@@ -377,31 +385,32 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
 
   // --- 5. LÓGICA DE COMBATE ---
   if (player.attackRequested) {
-  // Si el enemigo existe y está vivo
-  if (enemy && enemy.position.x !== -1000) {
-    const dx = enemy.position.x - player.position.x;
-    const dy = enemy.position.y - player.position.y;
-    const dist = Math.hypot(dx, dy);
+    // Si el enemigo existe y está vivo
+    if (enemy && enemy.position.x !== -1000) {
+      const dx = enemy.position.x - player.position.x;
+      const dy = enemy.position.y - player.position.y;
+      const dist = Math.hypot(dx, dy);
 
-    if (dist < 50) {
-      const angle = Math.atan2(dy, dx);
-      enemy.position.x += Math.cos(angle) * 40;
-      enemy.position.y += Math.sin(angle) * 40;
-      enemy.health -= 0.4;
+      if (dist < 50) {
+        const angle = Math.atan2(dy, dx);
+        enemy.position.x += Math.cos(angle) * 40;
+        enemy.position.y += Math.sin(angle) * 40;
+        enemy.health -= 0.4;
 
-      if (enemy.health <= 0) {
-        enemy.position = { x: -1000, y: -1000 };
+        if (enemy.health <= 0) {
+          enemy.position = { x: -1000, y: -1000 };
+          player.kills += 1; // <--- ¡SUMAR KILL!
+        }
       }
     }
-  }
   
-  // SIEMPRE completar la animación de ataque, independientemente del enemigo
-  if (player.animation.frameIndex >= 3) {
-    player.attackRequested = false;
-    player.animation.state = "idle";
-    player.animation.frameIndex = 0;
+    // SIEMPRE completar la animación de ataque, independientemente del enemigo
+    if (player.animation.frameIndex >= 3) {
+      player.attackRequested = false;
+      player.animation.state = "idle";
+      player.animation.frameIndex = 0;
+    }
   }
-}
 
   return entities;
 };
@@ -414,6 +423,8 @@ export default function GameScreen() {
   const velocityRef = useRef({ x: 0, y: 0 });
   const dashSignalRef = useRef(false); // Para comunicar el botón con el juego
   const attackSignalRef = useRef(false);
+  const [gameOver, setGameOver] = useState(false);
+  const [finalStats, setFinalStats] = useState({ kills: 0, time: 0 }); // Para guardar el récord
 
   const InputSystem = (entities: GameEntities) => {
     const player = entities.player.body;
@@ -424,6 +435,15 @@ export default function GameScreen() {
     if (dashSignalRef.current) {
       player.dash.requested = true;
       dashSignalRef.current = false;
+    }
+
+    if (player.health <= 0 && !gameOver) {
+    setGameOver(true);
+    setFinalStats({
+      kills: player.kills,
+      time: Math.floor(player.survivalTime / 1000) // Convertir ms a segundos
+    });
+    setRunning(false); // Detener el motor del juego
     }
 
     // Señal de Ataque
@@ -465,6 +485,9 @@ export default function GameScreen() {
         },
         health: 100,
         attackRequested: false,
+        // En initialEntities -> player -> body:
+        kills: 0,
+        survivalTime: 0,
         
       },
       renderer: PlayerRenderer,
@@ -526,31 +549,58 @@ export default function GameScreen() {
       />
 
       <View style={styles.hudContainer}>
-      <HealthBar health={playerHP} />
-    </View>
+        <HealthBar health={playerHP} />
+      </View>
+
       <View style={styles.controlsArea}>
         {/* CRUCETA */}
         <View style={styles.dpadContainer}>
-          <Pressable style={({ pressed }) => [styles.dpadBtn, styles.btnUp, pressed && styles.btnPressed]} onPressIn={() => startMove("up")} onPressOut={stopMove}><Text style={styles.arrow}>▲</Text></Pressable>
-          <Pressable style={({ pressed }) => [styles.dpadBtn, styles.btnDown, pressed && styles.btnPressed]} onPressIn={() => startMove("down")} onPressOut={stopMove}><Text style={styles.arrow}>▼</Text></Pressable>
-          <Pressable style={({ pressed }) => [styles.dpadBtn, styles.btnLeft, pressed && styles.btnPressed]} onPressIn={() => startMove("left")} onPressOut={stopMove}><Text style={styles.arrow}>◀</Text></Pressable>
-          <Pressable style={({ pressed }) => [styles.dpadBtn, styles.btnRight, pressed && styles.btnPressed]} onPressIn={() => startMove("right")} onPressOut={stopMove}><Text style={styles.arrow}>▶</Text></Pressable>
-          <View style={styles.dpadCenter} />
+           {/* ... botones flechas ... */}
+            <Pressable style={({ pressed }) => [styles.dpadBtn, styles.btnUp, pressed && styles.btnPressed]} onPressIn={() => startMove("up")} onPressOut={stopMove}><Text style={styles.arrow}>▲</Text></Pressable>
+            <Pressable style={({ pressed }) => [styles.dpadBtn, styles.btnDown, pressed && styles.btnPressed]} onPressIn={() => startMove("down")} onPressOut={stopMove}><Text style={styles.arrow}>▼</Text></Pressable>
+            <Pressable style={({ pressed }) => [styles.dpadBtn, styles.btnLeft, pressed && styles.btnPressed]} onPressIn={() => startMove("left")} onPressOut={stopMove}><Text style={styles.arrow}>◀</Text></Pressable>
+            <Pressable style={({ pressed }) => [styles.dpadBtn, styles.btnRight, pressed && styles.btnPressed]} onPressIn={() => startMove("right")} onPressOut={stopMove}><Text style={styles.arrow}>▶</Text></Pressable>
+            <View style={styles.dpadCenter} />
         </View>
+
         <View style={styles.actionButtons}>
-          {/* BOTÓN DE ATAQUE (ROJO) */}
+          {/* BOTÓN DE ATAQUE */}
           <Pressable 
             style={({ pressed }) => [styles.btn, styles.btnAttack, pressed && styles.btnPressed]} 
             onPress={handleAttackPress} 
           />
 
-          {/* BOTÓN DE DASH (AZUL) */}
+          {/* BOTÓN DE DASH */}
           <Pressable 
             style={({ pressed }) => [styles.btn, styles.btnDash, pressed && styles.btnPressed]} 
             onPress={handleDashPress}
           />
-        </View>
+        </View> 
+        {/* 1. AQUÍ CERRAMOS controlsArea (antes estaba dentro) */}
       </View>
+
+      {/* 2. AQUÍ PEGAMOS EL GAME OVER (Afuera de todo, al final) */}
+      {gameOver && (
+        <View style={styles.gameOverContainer}>
+          <Text style={styles.gameOverText}>¡GAME OVER!</Text>
+          <Text style={styles.statsText}>Enemigos eliminados: {finalStats.kills}</Text>
+          <Text style={styles.statsText}>Tiempo sobrevivido: {finalStats.time}s</Text>
+          
+          <Pressable 
+            style={styles.restartButton} 
+            onPress={() => {
+              // Reinicio simple
+              setGameOver(false);
+              setRunning(true);
+              setPlayerHP(100); // Restaurar vida visualmente
+              // Nota: Para reiniciar posición del jugador, lo ideal sería recargar la escena completa
+            }}
+          >
+            <Text style={styles.btnText}>Reiniciar</Text>
+          </Pressable>
+        </View>
+      )}
+
     </View>
   );
 }
@@ -601,4 +651,36 @@ const styles = StyleSheet.create({
     textShadowOffset: {width: -1, height: 1},
     textShadowRadius: 10
   },
+  gameOverContainer: {
+    position: 'absolute',
+    top: 0, left: 0, width: '100%', height: '100%',
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  gameOverText: {
+    color: '#ff4444',
+    fontSize: 40,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    // fontFamily: 'monospace', // Descomenta si quieres letra tipo retro
+  },
+  statsText: {
+    color: '#fff',
+    fontSize: 20,
+    marginBottom: 10,
+  },
+  restartButton: {
+    marginTop: 30,
+    paddingVertical: 15,
+    paddingHorizontal: 40,
+    backgroundColor: '#3498db',
+    borderRadius: 10,
+  },
+  btnText: { // <--- OJO: Este también te va a faltar si no lo tienes
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 18,
+  }
 });
