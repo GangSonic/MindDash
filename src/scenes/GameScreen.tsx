@@ -424,6 +424,7 @@ export default function GameScreen() {
   const dashSignalRef = useRef(false); // Para comunicar el botón con el juego
   const attackSignalRef = useRef(false);
   const [gameOver, setGameOver] = useState(false);
+  const [gameKey, setGameKey] = useState(0);
   const [finalStats, setFinalStats] = useState({ kills: 0, time: 0 }); // Para guardar el récord
 
   const InputSystem = (entities: GameEntities) => {
@@ -541,6 +542,7 @@ export default function GameScreen() {
   return (
     <View style={styles.container}>
       <GameEngine
+        key={gameKey}
         ref={gameEngineRef}
         style={styles.gameContainer}
         systems={[InputSystem, PhysicsSystem]}
@@ -589,11 +591,13 @@ export default function GameScreen() {
           <Pressable 
             style={styles.restartButton} 
             onPress={() => {
-              // Reinicio simple
+              setGameKey((prev) => prev + 1);
+              
               setGameOver(false);
+              setPlayerHP(100); 
               setRunning(true);
-              setPlayerHP(100); // Restaurar vida visualmente
-              // Nota: Para reiniciar posición del jugador, lo ideal sería recargar la escena completa
+              
+              velocityRef.current = { x: 0, y: 0 };
             }}
           >
             <Text style={styles.btnText}>Reiniciar</Text>
