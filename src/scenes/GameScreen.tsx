@@ -426,6 +426,7 @@ export default function GameScreen() {
   const [gameOver, setGameOver] = useState(false);
   const [gameKey, setGameKey] = useState(0);
   const [finalStats, setFinalStats] = useState({ kills: 0, time: 0 }); // Para guardar el récord
+  const [isPaused, setIsPaused] = useState(false);
 
   const InputSystem = (entities: GameEntities) => {
     const player = entities.player.body;
@@ -458,6 +459,7 @@ export default function GameScreen() {
     if (player.health !== playerHP) {
       setPlayerHP(player.health);
     }
+    
     
     return entities;
   };
@@ -539,6 +541,17 @@ export default function GameScreen() {
   attackSignalRef.current = true;
 };
 
+const handlePause = () => {
+    if (gameOver) return; // No pausar si ya perdiste
+    setIsPaused(true);
+    setRunning(false); // Detiene el motor del juego
+  };
+
+  const handleResume = () => {
+    setIsPaused(false);
+    setRunning(true); // Arranca el motor
+  };
+
   return (
     <View style={styles.container}>
       <GameEngine
@@ -580,7 +593,43 @@ export default function GameScreen() {
         </View> 
         {/* 1. AQUÍ CERRAMOS controlsArea (antes estaba dentro) */}
       </View>
+      {/* BOTÓN DE PAUSA (Esquina Superior Izquierda) */}
+      {!isPaused && !gameOver && (
+        <Pressable style={styles.pauseButton} onPress={handlePause}>
+          <Text style={styles.pauseIcon}>||</Text>
+        </Pressable>
+      )}
 
+      {/* MENÚ DE PAUSA */}
+      {isPaused && (
+        <View style={styles.pauseContainer}>
+          <Text style={styles.pauseTitle}>PAUSA</Text>
+
+          {/* Opción 1: Continuar */}
+          <Pressable style={styles.menuBtn} onPress={handleResume}>
+            <Text style={styles.menuText}>Continuar</Text>
+          </Pressable>
+
+          {/* Opción 2: Reiniciar (Usamos la lógica que ya tenías) */}
+          <Pressable 
+            style={styles.menuBtn} 
+            onPress={() => {
+              setGameKey((prev) => prev + 1); // Reinicio mágico
+              setIsPaused(false);
+              setPlayerHP(100);
+              setRunning(true);
+              velocityRef.current = { x: 0, y: 0 };
+            }}
+          >
+            <Text style={styles.menuText}>Reiniciar</Text>
+          </Pressable>
+
+          {/* Opción 3: Salir (Solo visual por ahora) */}
+          <Pressable style={[styles.menuBtn, styles.exitBtn]}>
+            <Text style={styles.menuText}>Salir a Menú Principal</Text>
+          </Pressable>
+        </View>
+      )}
       {/* 2. AQUÍ PEGAMOS EL GAME OVER (Afuera de todo, al final) */}
       {gameOver && (
         <View style={styles.gameOverContainer}>
@@ -604,6 +653,7 @@ export default function GameScreen() {
           </Pressable>
         </View>
       )}
+      
 
     </View>
   );
@@ -686,5 +736,61 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 18,
-  }
+  },
+  // === ESTILOS DE PAUSA ===
+  pauseButton: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    width: 40,
+    height: 40,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
+    zIndex: 50,
+  },
+  pauseIcon: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  pauseContainer: {
+    position: 'absolute',
+    top: 0, left: 0, width: '100%', height: '100%',
+    backgroundColor: 'rgba(0,0,0,0.8)', // Fondo oscuro semitransparente
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  pauseTitle: {
+    color: 'white',
+    fontSize: 35,
+    fontWeight: 'bold',
+    marginBottom: 30,
+    letterSpacing: 2,
+  },
+  menuBtn: {
+    backgroundColor: '#5d6166',
+    paddingVertical: 12,
+    paddingHorizontal: 50,
+    borderRadius: 8,
+    marginBottom: 15,
+    width: 250,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#89a48f',
+  },
+  exitBtn: {
+    backgroundColor: '#5d6166', // Rojo para salir
+    borderColor: '#89a48f',
+    marginTop: 10,
+  },
+  menuText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
 });
