@@ -95,6 +95,8 @@ interface PlayerBody {
 
   kills: number;        // Contador de enemigos eliminados
   survivalTime: number; // Tiempo sobreviviendo (ms)
+  isWinner?: boolean;   // para indicar si ganó
+  reachedPortal?: boolean; // para indicar si llegó al portal
 }
 
 
@@ -113,7 +115,11 @@ interface GameEntities {
   enemy: {
     body: any; 
     renderer: React.ComponentType<any>;
-  }
+  }; 
+  portal: { 
+    body: { position: { x: number, y: number }, size: number }, 
+    renderer: React.ComponentType<any> 
+  };
 }
 
 // === RENDERER DEL MAPA ===
@@ -412,8 +418,24 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
     }
   }
 
-  return entities;
-};
+  /// --- FIN DE NIVEL ---
+  const portal = entities.portal?.body;
+  if (portal) {
+    const distToPortal = Math.hypot(
+      player.position.x - portal.position.x,
+      player.position.y - portal.position.y
+    );
+
+    // Si Finn está cerca de la entrada del túnel
+    if (distToPortal < 35 && !player.isWinner) {
+      player.isWinner = true; // Nueva bandera para evitar múltiples disparos
+      // Enviamos una señal al componente principal
+      player.reachedPortal = true;
+    }
+  }
+
+    return entities;
+  };
 
 // === PANTALLA PRINCIPAL ===
 export default function GameScreen() {
@@ -427,6 +449,7 @@ export default function GameScreen() {
   const [gameKey, setGameKey] = useState(0);
   const [finalStats, setFinalStats] = useState({ kills: 0, time: 0 }); // Para guardar el récord
   const [isPaused, setIsPaused] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false); // Estado para cuando pase de nivel 
 
   const InputSystem = (entities: GameEntities) => {
     const player = entities.player.body;
@@ -460,6 +483,14 @@ export default function GameScreen() {
       setPlayerHP(player.health);
     }
     
+    //sincronizar portal con fin de nivel 
+    if (player.reachedPortal && !isTransitioning) {
+    setIsTransitioning(true);
+    setRunning(false); // Pausamos el juego mientras "carga"
+    
+    // Aquí se llamara a la IA
+    console.log("Iniciando carga de Nivel 2 con IA...");
+  }
     
     return entities;
   };
@@ -491,6 +522,8 @@ export default function GameScreen() {
         // En initialEntities -> player -> body:
         kills: 0,
         survivalTime: 0,
+        isWinner: false,
+        reachedPortal: false,
         
       },
       renderer: PlayerRenderer,
@@ -516,7 +549,19 @@ export default function GameScreen() {
           borderRadius: 10
         }} />
       )
-    },  
+    },
+    //fin de nivel 
+    portal: {
+      body: {
+        // Calculamos la posición basada en tus coordenadas [29, 9]
+        position: { 
+          x: 31 * (SCREEN_WIDTH / 32), 
+          y: 9 * (SCREEN_HEIGHT / 21) 
+        },
+        size: 60 
+      },
+      renderer: () => null // Invisible, ya que el mapa ya tiene el dibujo del túnel
+    }, 
   };
 
   const startMove = (direction: "up" | "down" | "left" | "right") => {
@@ -653,7 +698,26 @@ const handlePause = () => {
           </Pressable>
         </View>
       )}
-      
+
+      {/* CAPA DE CARGA (SIGUIENTE NIVEL) */}
+    {isTransitioning && (
+      <View style={styles.loadingOverlay}>
+        <Text style={styles.loadingText}>INGRESANDO AL TÚNEL...</Text>
+        <Text style={styles.subLoadingText}>Generando siguiente zona con IA</Text>
+        {/* Aquí podrías poner un ActivityIndicator de React Native */}
+        <Pressable 
+          style={styles.cancelLoadingBtn} 
+          onPress={() => {
+            console.log("Carga cancelada, regresando al menú...");
+            //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            // Cuando este el menu de inicio, se redirige al mismo 
+
+          }}
+        >
+          <Text style={styles.cancelLoadingText}> Cancelar </Text>
+        </Pressable>
+      </View>
+    )}
 
     </View>
   );
@@ -793,4 +857,39 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, width: '100%', height: '100%',
+    backgroundColor: 'black',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 200, // Por encima de todo
+  },
+  loadingText: {
+    color: '#00ff00', // Verde tipo terminal
+    fontSize: 28,
+    fontWeight: 'bold',
+    letterSpacing: 3,
+  },
+  subLoadingText: {
+    color: '#888',
+    fontSize: 14,
+    marginTop: 10,
+    fontStyle: 'italic',
+  },
+  cancelLoadingBtn: {
+    marginTop: 50,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: '#89a48f', // 
+    borderRadius: 5,
+  },
+  cancelLoadingText: {
+    color: '#a3aab3',
+    fontSize: 14,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+
 });
