@@ -415,7 +415,19 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
       if (player.attackRequested && distanceToPlayer < 50) {
         enemy.health -= 1; 
         player.attackRequested = false;
+        const knockbackForce = 35;
+
+        const angle = Math.atan2(
+          enemy.position.y - player.position.y,
+          enemy.position.x - player.position.x
+        );
+        // Aplicamos el empujón instantáneo
+        enemy.position.x += Math.cos(angle) * knockbackForce;
+        enemy.position.y += Math.sin(angle) * knockbackForce;
         
+        // Consumimos el ataque para que solo sea un golpe por click
+        player.attackRequested = false;
+
         if (enemy.health <= 0) {
           enemy.position = { x: -1000, y: -1000 };
           player.kills += 1;
