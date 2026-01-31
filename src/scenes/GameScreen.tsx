@@ -112,10 +112,10 @@ interface GameEntities {
     body: PlayerBody;
     renderer: React.ComponentType<any>;
   };
-  enemy: {
-    body: any; 
-    renderer: React.ComponentType<any>;
-  }; 
+
+  //para que soporte ms enemigos 
+  [key: string]: any;
+
   portal: { 
     body: { position: { x: number, y: number }, size: number }, 
     renderer: React.ComponentType<any> 
@@ -217,6 +217,24 @@ const PlayerRenderer = ({ body }: { body: PlayerBody }) => {
   );
 };
 
+// === RENDERER DEL ENEMIGO ===
+const EnemyRenderer = ({ body }: { body: any }) => {
+  return (
+    <View style={{
+      position: 'absolute',
+      left: body.position.x,
+      top: body.position.y,
+      width: body.radius * 2, // Ajustado al radio
+      height: body.radius * 2,
+      backgroundColor: 'green',
+      borderRadius: body.radius,
+      borderWidth: 1,
+      borderColor: '#00ff00',
+    }} />
+  );
+};
+
+
 // === COMPONENTE DE VIDAS ===
 const HealthBar = ({ health }: { health: number }) => {
   // Cada corazón representa 20 de vida (5 corazones = 100 HP)
@@ -253,7 +271,7 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
   }
 
   const player = entities.player.body;
-  const enemy = entities.enemy?.body;
+
   
   // 1. CONTAR TIEMPO: Al principio de la función
   player.survivalTime += time.delta;
@@ -353,70 +371,68 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
     player.animation.frameIndex++;
   }
 
-  // --- 4. FÍSICA DEL ENEMIGO ---
-  if (!enemy) {
-    return entities;
-  }
 
-  const speed = enemy.speed || 0.6;
-  const dx = player.position.x - enemy.position.x;
-  const dy = player.position.y - enemy.position.y;
-  const distance = Math.hypot(dx, dy);
+  // == Logica para cada enemigo ==
+  Object.keys(entities).forEach(key => {
+    if (key.startsWith("enemy")) {
+      const enemy = entities[key].body;
+      if (enemy.health <= 0) return; // Si ya murió, lo ignoramos
 
-  if (distance > 12) {
-    const angle = Math.atan2(dy, dx);
-    const nextX = enemy.position.x + Math.cos(angle) * speed;
-    const nextY = enemy.position.y + Math.sin(angle) * speed;
+      // 1. Persecución (ya tienes la lógica, solo aplícala a 'enemy')
+      const dx = player.position.x - enemy.position.x;
+      const dy = player.position.y - enemy.position.y;
+      const distanceToPlayer = Math.hypot(dx, dy);
 
-    const gridX = Math.floor((nextX + enemy.radius) / cellWidth);
-    const gridY = Math.floor((nextY + enemy.radius) / cellHeight);
+      if (distanceToPlayer < enemy.detectionRange) {
+      // MODO PERSECUCIÓN
+      const vX = (dx / distanceToPlayer) * enemy.speed;
+      const vY = (dy / distanceToPlayer) * enemy.speed;
+      enemy.position.x += vX;
+      enemy.position.y += vY;
+    } else if (enemy.waypoints && enemy.waypoints.length > 0) {
+      // MODO PATRULLA POR WAYPOINTS
+      const target = enemy.waypoints[enemy.nextPointIndex];
+      const tDx = target.x - enemy.position.x;
+      const tDy = target.y - enemy.position.y;
+      const distanceToTarget = Math.hypot(tDx, tDy);
 
-    if (MAP_LOGIC[gridY] && MAP_LOGIC[gridY][gridX] === 0) {
-      enemy.position.x = nextX;
-      enemy.position.y = nextY;
-    } else {
-      const canMoveX = MAP_LOGIC[Math.floor((enemy.position.y + enemy.radius)/cellHeight)]?.[Math.floor((nextX + enemy.radius)/cellWidth)] === 0;
-      const canMoveY = MAP_LOGIC[Math.floor((nextY + enemy.radius)/cellHeight)]?.[Math.floor((enemy.position.x + enemy.radius)/cellWidth)] === 0;
-      
-      if (canMoveX) enemy.position.x = nextX;
-      else if (canMoveY) enemy.position.y = nextY;
-    }  
-  }
+      if (distanceToTarget < 5) {
+        // Si llegó al punto, que pase al siguiente (vuelve a 0 al final)
+        enemy.nextPointIndex = (enemy.nextPointIndex + 1) % enemy.waypoints.length;
+      } else {
+        // Moverse hacia el punto del circuito
+        enemy.position.x += (tDx / distanceToTarget) * (enemy.speed * 0.7); // Un poco más lento al patrullar
+        enemy.position.y += (tDy / distanceToTarget) * (enemy.speed * 0.7);
+      }
+    }
 
-  // Daño por contacto
-  if (distance < 18) { 
-    player.health -= 0.3;
-    if (player.health < 0) player.health = 0;
-  }
+      // 2. Daño al jugador
+      if (distanceToPlayer < 18) { 
+        player.health -= 0.5; // Ajustado para que no mueras tan rápido con 3
+      }
 
-  // --- 5. LÓGICA DE COMBATE ---
-  if (player.attackRequested) {
-    // Si el enemigo existe y está vivo
-    if (enemy && enemy.position.x !== -1000) {
-      const dx = enemy.position.x - player.position.x;
-      const dy = enemy.position.y - player.position.y;
-      const dist = Math.hypot(dx, dy);
-
-      if (dist < 50) {
-        const angle = Math.atan2(dy, dx);
-        enemy.position.x += Math.cos(angle) * 40;
-        enemy.position.y += Math.sin(angle) * 40;
-        enemy.health -= 0.4;
-
+      // 3. Recibir daño del jugador (4 golpes para morir)
+      if (player.attackRequested && distanceToPlayer < 50) {
+        enemy.health -= 1; 
+        player.attackRequested = false;
+        
         if (enemy.health <= 0) {
           enemy.position = { x: -1000, y: -1000 };
-          player.kills += 1; // <--- ¡SUMAR KILL!
+          player.kills += 1;
         }
       }
     }
-  
+  });
+
+
+
     // SIEMPRE completar la animación de ataque, independientemente del enemigo
     if (player.animation.frameIndex >= 3) {
       player.attackRequested = false;
       player.animation.state = "idle";
       player.animation.frameIndex = 0;
     }
-  }
+  
 
   /// --- FIN DE NIVEL ---
   const portal = entities.portal?.body;
@@ -529,27 +545,52 @@ export default function GameScreen() {
       renderer: PlayerRenderer,
     },
     //enemigo 
-    enemy: {
-      body: {
-        position: { x: 15* (SCREEN_WIDTH / 32), y: 9 * (SCREEN_HEIGHT / 21) },
-        velocity: { x: 0, y: 0 },
-        radius: CONFIG.PLAYER_SIZE / 2,
-        speed: 0.6, // Un poco más lento para escapar
-        type: "near", // Lo identificamos como el villano fácil
-        health: 1, 
-      },
-      renderer: (props: any) => (
-        <View style={{
-          position: 'absolute',
-          left: props.body.position.x,
-          top: props.body.position.y,
-          width: props.body.radius * 4,
-          height: props.body.radius * 4,
-          backgroundColor: 'green', // Color temporal del villano fácil
-          borderRadius: 10
-        }} />
-      )
+    enemy1: {
+      body: { 
+        position: { x: 400, y: 100 },
+        waypoints: [
+          { x: 400, y: 100 },
+          { x: 500, y: 100 },
+          { x: 500, y: 200 },
+          { x: 400, y: 200 },
+        ], 
+        nextPointIndex: 0,
+        speed: 1.2, 
+        health: 3, 
+        radius: 10,
+        detectionRange: 120
+       },
+      renderer: EnemyRenderer 
     },
+    enemy2: {
+      body: { 
+        position: { x: 500, y: 250 }, 
+        waypoints: [
+          { x: 500, y: 250 }, 
+          { x: 600, y: 250 }
+        ],
+        nextPointIndex: 0,
+        speed: 1.4, 
+        health: 3, 
+        radius: 10,
+        detectionRange: 120 },
+      renderer: EnemyRenderer 
+    },
+    enemy3: {
+      body: { 
+        position: { x: 300, y: 300 }, 
+        waypoints: [
+          { x: 300, y: 300 }, 
+          { x: 200, y: 300 }
+        ],
+        nextPointIndex: 0,
+        speed: 1.1, 
+        health: 3, 
+        radius: 10, 
+        detectionRange: 120 },
+      renderer: EnemyRenderer 
+    },
+
     //fin de nivel 
     portal: {
       body: {
