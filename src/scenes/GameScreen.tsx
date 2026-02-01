@@ -8,6 +8,7 @@ import {
   Image,
 } from "react-native";
 import { GameEngine } from "react-native-game-engine";
+import {LevelGenerator} from "./LevelLogic";
 
 // === TRUCO PARA PANTALLA ===
 const { width, height } = Dimensions.get("window");
@@ -539,8 +540,17 @@ export default function GameScreen() {
 
   //funciona para cargar nivel 
   const setupNextLevel = (newMap: number[][], newEnemies: any) => {
+    
+    const enemiesWithVisuals: any = {};
+    Object.keys(newEnemies).forEach(key => {
+    enemiesWithVisuals[key] = {
+      body: newEnemies[key].body,
+      renderer: EnemyRenderer // <--- ESTO es lo que le faltaba "inyectar" al Nivel 2
+    };
+  });
+  
     setMapMatrix(newMap);
-    setEnemiesData(newEnemies);
+    setEnemiesData(enemiesWithVisuals);
     
     // Resetear posición del jugador al inicio del mapa
     // (Podemos pedirle a la IA que también nos dé el spawn point)
@@ -628,14 +638,12 @@ export default function GameScreen() {
     ///prueba de nuevo mapa
     // SIMULACIÓN: En 2 segundos cargamos un "Mapa Vacío" (Nivel 2)
   setTimeout(() => {
-    const emptyMap = INITIAL_MAP.map(row => row.map(() => 0)); // Mapa sin paredes
-    const bossEnemy = {
-      boss: {
-        body: { position: { x: 200, y: 200 }, health: 20, radius: 30, speed: 0.5 },
-        renderer: EnemyRenderer
-      }
-    };
-    setupNextLevel(emptyMap, bossEnemy);
+    const { map, enemies } = LevelGenerator.generateLevel2();
+    
+    setCurrentLevel(2);
+    setupNextLevel(map, enemies);
+    
+    console.log("¡Nivel 2 cargado con éxito!");
   }, 2000);
 
   }
