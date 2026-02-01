@@ -45,7 +45,7 @@ const SPRITES = {
 };
 
 // === MATRIZ DEL MAPA ===
-const MAP_LOGIC = [
+const INITIAL_MAP = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1],
   [1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1],
@@ -68,6 +68,74 @@ const MAP_LOGIC = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ];
+
+// === RENDERER DEL ENEMIGO ===
+const EnemyRenderer = ({ body }: { body: any }) => {
+  return (
+    <View style={{
+      position: 'absolute',
+      left: body.position.x,
+      top: body.position.y,
+      width: body.radius * 2, // Ajustado al radio
+      height: body.radius * 2,
+      backgroundColor: 'green',
+      borderRadius: body.radius,
+      borderWidth: 1,
+      borderColor: '#00ff00',
+    }} />
+  );
+};
+
+
+const INITIAL_ENEMIES = {
+  //enemigo 
+    enemy1: {
+      body: { 
+        position: { x: 400, y: 100 },
+        waypoints: [
+          { x: 400, y: 100 },
+          { x: 500, y: 100 },
+          { x: 500, y: 200 },
+          { x: 400, y: 200 },
+        ], 
+        nextPointIndex: 0,
+        speed: 1.2, 
+        health: 3, 
+        radius: 10,
+        detectionRange: 120
+       },
+      renderer: EnemyRenderer 
+    },
+    enemy2: {
+      body: { 
+        position: { x: 500, y: 250 }, 
+        waypoints: [
+          { x: 500, y: 250 }, 
+          { x: 600, y: 250 }
+        ],
+        nextPointIndex: 0,
+        speed: 1.4, 
+        health: 3, 
+        radius: 10,
+        detectionRange: 120 },
+      renderer: EnemyRenderer 
+    },
+    enemy3: {
+      body: { 
+        position: { x: 300, y: 300 }, 
+        waypoints: [
+          { x: 300, y: 300 }, 
+          { x: 200, y: 300 }
+        ],
+        nextPointIndex: 0,
+        speed: 1.1, 
+        health: 3, 
+        radius: 10, 
+        detectionRange: 120 },
+      renderer: EnemyRenderer 
+    },
+}; 
+
 
 // === TIPOS ===
 interface PlayerBody {
@@ -217,23 +285,6 @@ const PlayerRenderer = ({ body }: { body: PlayerBody }) => {
   );
 };
 
-// === RENDERER DEL ENEMIGO ===
-const EnemyRenderer = ({ body }: { body: any }) => {
-  return (
-    <View style={{
-      position: 'absolute',
-      left: body.position.x,
-      top: body.position.y,
-      width: body.radius * 2, // Ajustado al radio
-      height: body.radius * 2,
-      backgroundColor: 'green',
-      borderRadius: body.radius,
-      borderWidth: 1,
-      borderColor: '#00ff00',
-    }} />
-  );
-};
-
 
 // === COMPONENTE DE VIDAS ===
 const HealthBar = ({ health }: { health: number }) => {
@@ -325,30 +376,31 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
   }
 
   // --- 2. MOVIMIENTO Y COLISIONES ---
-  const nextX = player.position.x + finalVelocity.x;
-  const nextY = player.position.y + finalVelocity.y;
-  
-  const cellWidth = SCREEN_WIDTH / 32;
-  const cellHeight = SCREEN_HEIGHT / 21;
-  const checkX = finalVelocity.x > 0 ? nextX + player.radius * 2 : nextX;
-  const checkY = finalVelocity.y > 0 ? nextY + player.radius * 2 : nextY;
-  const gridX = Math.floor(checkX / cellWidth);
-  const gridY = Math.floor(checkY / cellHeight);
+const nextX = player.position.x + finalVelocity.x;
+const nextY = player.position.y + finalVelocity.y;
 
-  if (finalVelocity.x !== 0 || finalVelocity.y !== 0) {
-    if (
-      gridY >= 0 && gridY < MAP_LOGIC.length &&
-      gridX >= 0 && gridX < MAP_LOGIC[0].length &&
-      MAP_LOGIC[gridY][gridX] === 0
-    ) {
-      player.position.x = nextX;
-      player.position.y = nextY;
-    } else {
-      if (player.dash.isDashing) {
-        player.dash.isDashing = false;
-      }
-    }
+const cellWidth = SCREEN_WIDTH / 32;
+const cellHeight = SCREEN_HEIGHT / 21;
+const checkX = finalVelocity.x > 0 ? nextX + player.radius * 2 : nextX;
+const checkY = finalVelocity.y > 0 ? nextY + player.radius * 2 : nextY;
+const gridX = Math.floor(checkX / cellWidth);
+const gridY = Math.floor(checkY / cellHeight);
+
+// BUSCAMOS LA MATRIZ DINÁMICA QUE PASAMOS EN ENTITIES
+const currentMap = entities.mapData?.matrix || INITIAL_MAP; 
+
+if (finalVelocity.x !== 0 || finalVelocity.y !== 0) {
+  if (
+    gridY >= 0 && gridY < currentMap.length &&
+    gridX >= 0 && gridX < currentMap[0].length &&
+    currentMap[gridY][gridX] === 0 // <-- Usamos currentMap
+  ) {
+    player.position.x = nextX;
+    player.position.y = nextY;
+  } else {
+    if (player.dash.isDashing) player.dash.isDashing = false;
   }
+}
 
   // --- 3. ANIMACIÓN ---
   const isMoving = finalVelocity.x !== 0 || finalVelocity.y !== 0;
@@ -467,6 +519,12 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
 
 // === PANTALLA PRINCIPAL ===
 export default function GameScreen() {
+
+  //estados dinamicos 
+  const [currentLevel, setCurrentLevel] = useState(1);
+  const [mapMatrix, setMapMatrix] = useState(INITIAL_MAP);
+  const [enemiesData, setEnemiesData] = useState(INITIAL_ENEMIES);
+
   const [playerHP, setPlayerHP] = useState(100);
   const [running, setRunning] = useState(true);
   const gameEngineRef = useRef<GameEngine>(null);
@@ -478,6 +536,54 @@ export default function GameScreen() {
   const [finalStats, setFinalStats] = useState({ kills: 0, time: 0 }); // Para guardar el récord
   const [isPaused, setIsPaused] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false); // Estado para cuando pase de nivel 
+
+  //funciona para cargar nivel 
+  const setupNextLevel = (newMap: number[][], newEnemies: any) => {
+    setMapMatrix(newMap);
+    setEnemiesData(newEnemies);
+    
+    // Resetear posición del jugador al inicio del mapa
+    // (Podemos pedirle a la IA que también nos dé el spawn point)
+    setGameKey(prev => prev + 1); 
+    setIsTransitioning(false);
+    setRunning(true);
+  };
+
+  // --- ENTIDADES INICIALES (Ahora usan los estados) ---
+  const getEntities = () => {
+    const enemiesCopy = JSON.parse(JSON.stringify(enemiesData));
+    
+    const enemyEntities: any = {};
+    Object.keys(enemiesCopy).forEach(key => {
+      enemyEntities[key] = {
+        body: enemiesCopy[key].body,
+        renderer: EnemyRenderer
+      };
+    });
+    return {
+      map: { renderer: MapRenderer },
+      player: {
+        body: {
+          position: { x: 50, y: SCREEN_HEIGHT / 2 }, // Spawn fijo o dinámico
+          velocity: { x: 0, y: 0 },
+          radius: CONFIG.PLAYER_SIZE / 2,
+          health: playerHP, // Mantener la vida entre niveles
+          animation: { state: "idle", direction: "right", frameIndex: 0, timer: 0 },
+          dash: { isDashing: false, timeLeft: 0, cooldown: 0, facing: { x: 1, y: 0 }, requested: false },
+          kills: 0,
+          survivalTime: 0,
+          reachedPortal: false,
+        },
+        renderer: PlayerRenderer,
+      },
+      ...enemyEntities, // Esparcimos los enemigos del estado
+      mapData: { matrix: mapMatrix },
+      portal: {
+        body: { position: { x: SCREEN_WIDTH - 50, y: SCREEN_HEIGHT / 2 }, size: 60 },
+        renderer: () => null
+      }
+    };
+  };
 
   const InputSystem = (entities: GameEntities) => {
     const player = entities.player.body;
@@ -518,6 +624,20 @@ export default function GameScreen() {
     
     // Aquí se llamara a la IA
     console.log("Iniciando carga de Nivel 2 con IA...");
+
+    ///prueba de nuevo mapa
+    // SIMULACIÓN: En 2 segundos cargamos un "Mapa Vacío" (Nivel 2)
+  setTimeout(() => {
+    const emptyMap = INITIAL_MAP.map(row => row.map(() => 0)); // Mapa sin paredes
+    const bossEnemy = {
+      boss: {
+        body: { position: { x: 200, y: 200 }, health: 20, radius: 30, speed: 0.5 },
+        renderer: EnemyRenderer
+      }
+    };
+    setupNextLevel(emptyMap, bossEnemy);
+  }, 2000);
+
   }
     
     return entities;
@@ -555,52 +675,6 @@ export default function GameScreen() {
         
       },
       renderer: PlayerRenderer,
-    },
-    //enemigo 
-    enemy1: {
-      body: { 
-        position: { x: 400, y: 100 },
-        waypoints: [
-          { x: 400, y: 100 },
-          { x: 500, y: 100 },
-          { x: 500, y: 200 },
-          { x: 400, y: 200 },
-        ], 
-        nextPointIndex: 0,
-        speed: 1.2, 
-        health: 3, 
-        radius: 10,
-        detectionRange: 120
-       },
-      renderer: EnemyRenderer 
-    },
-    enemy2: {
-      body: { 
-        position: { x: 500, y: 250 }, 
-        waypoints: [
-          { x: 500, y: 250 }, 
-          { x: 600, y: 250 }
-        ],
-        nextPointIndex: 0,
-        speed: 1.4, 
-        health: 3, 
-        radius: 10,
-        detectionRange: 120 },
-      renderer: EnemyRenderer 
-    },
-    enemy3: {
-      body: { 
-        position: { x: 300, y: 300 }, 
-        waypoints: [
-          { x: 300, y: 300 }, 
-          { x: 200, y: 300 }
-        ],
-        nextPointIndex: 0,
-        speed: 1.1, 
-        health: 3, 
-        radius: 10, 
-        detectionRange: 120 },
-      renderer: EnemyRenderer 
     },
 
     //fin de nivel 
@@ -656,8 +730,8 @@ const handlePause = () => {
         key={gameKey}
         ref={gameEngineRef}
         style={styles.gameContainer}
+        entities={getEntities()}
         systems={[InputSystem, PhysicsSystem]}
-        entities={initialEntities}
         running={running}
       />
 
@@ -712,11 +786,16 @@ const handlePause = () => {
           <Pressable 
             style={styles.menuBtn} 
             onPress={() => {
+              const freshEnemies = JSON.parse(JSON.stringify(INITIAL_ENEMIES));
+              setMapMatrix(INITIAL_MAP);
+              setEnemiesData(freshEnemies);
               setGameKey((prev) => prev + 1); // Reinicio mágico
               setIsPaused(false);
               setPlayerHP(100);
               setRunning(true);
               velocityRef.current = { x: 0, y: 0 };
+              dashSignalRef.current = false;
+              attackSignalRef.current = false
             }}
           >
             <Text style={styles.menuText}>Reiniciar</Text>
@@ -738,12 +817,14 @@ const handlePause = () => {
           <Pressable 
             style={styles.restartButton} 
             onPress={() => {
+              const freshEnemies = JSON.parse(JSON.stringify(INITIAL_ENEMIES));
+              setMapMatrix(INITIAL_MAP);
               setGameKey((prev) => prev + 1);
-              
               setGameOver(false);
               setPlayerHP(100); 
               setRunning(true);
-              
+              dashSignalRef.current = false;
+              attackSignalRef.current = false
               velocityRef.current = { x: 0, y: 0 };
             }}
           >
