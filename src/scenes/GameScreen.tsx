@@ -8,7 +8,7 @@ import {
   Image,
 } from "react-native";
 import { GameEngine } from "react-native-game-engine";
-import {LevelGenerator} from "./LevelLogic";
+import {LevelGenerator} from "../services/LevelLogic";
 
 // === TRUCO PARA PANTALLA ===
 const { width, height } = Dimensions.get("window");
@@ -227,16 +227,46 @@ interface GameEntities {
 }
 
 // === RENDERER DEL MAPA ===
-const MapRenderer = () => {
+// 1. Importa tus tiles (ajusta la ruta según tu proyecto)
+const TILE_WALL = require("../../assets/levels/tile_arbustos.png"); 
+const TILE_FLOOR = require("../../assets/levels/tile_suelo.png");
+
+const MapRenderer = ({ matrix, level }: { matrix: number[][], level: number }) => {
+  if (level === 1) {
+    return (
+      <Image
+        source={require("../../assets/mapa_bosque.png")}
+        style={{
+          position: "absolute", top: 0, left: 0,
+          width: SCREEN_WIDTH, height: SCREEN_HEIGHT,
+          resizeMode: "stretch", zIndex: -1,
+        }}
+      />
+    );
+  }
+
+  const cellWidth = SCREEN_WIDTH / 32;
+  const cellHeight = SCREEN_HEIGHT / 21;
+
   return (
-    <Image
-      source={require("../../assets/mapa_bosque.png")}
-      style={{
-        position: "absolute", top: 0, left: 0,
-        width: SCREEN_WIDTH, height: SCREEN_HEIGHT,
-        resizeMode: "stretch", zIndex: -1,
-      }}
-    />
+    <View style={{ position: "absolute", width: SCREEN_WIDTH, height: SCREEN_HEIGHT, backgroundColor: '#000' }}>
+      {matrix.map((row, rowIndex) =>
+        row.map((cell, colIndex) => (
+          <Image
+            key={`${rowIndex}-${colIndex}`}
+            source={cell === 1 ? TILE_WALL : TILE_FLOOR} // Aquí decide qué imagen poner
+            style={{
+              position: "absolute",
+              left: colIndex * cellWidth,
+              top: rowIndex * cellHeight,
+              width: cellWidth + 0.5, // El +0.5 evita que se vean grietas entre cuadros
+              height: cellHeight + 0.5,
+              resizeMode: "cover",
+            }}
+          />
+        ))
+      )}
+    </View>
   );
 };
 
@@ -386,7 +416,9 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
     player.dash.cooldown = CONFIG.DASH_COOLDOWN; // Reiniciar cooldown
     
     player.dash.dashCount = (player.dash.dashCount || 0) + 1;
-    console.log("Dashes realizados en este nivel:", player.dash.dashCount);
+
+    //contador de dashes realizados
+    //console.log("Dashes realizados en este nivel:", player.dash.dashCount);
     player.dash.requested = false;
 
     player.animation.state = "dash"; // Forzar animación
@@ -468,9 +500,11 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
     player.animation.state = "attack";
     player.animation.frameIndex = 0; // Reiniciar animación
     player.attackCount = (player.attackCount || 0) + 1;
-    console.log("Total de golpes intentados:", player.attackCount);
+
+    //contador de golpes realizados (boton rojo)
+    //console.log("Total de golpes intentados:", player.attackCount);
   }
-  
+
     // == Logica para cada enemigo ==
     Object.keys(entities).forEach(key => {
       if (key.startsWith("enemy")) {
@@ -521,8 +555,9 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
         const angle = Math.atan2(dy, dx); // dy y dx ya los calculamos arriba
         enemy.position.x += Math.cos(angle) * knockbackForce;
         enemy.position.y += Math.sin(angle) * knockbackForce;
-
-        console.log(`${key} recibió daño. Vida restante: ${enemy.health}`);
+        
+        //daño que recibe el enemigo 
+        //console.log(`${key} recibió daño. Vida restante: ${enemy.health}`);
 
         if (enemy.health <= 0) {
           enemy.position = { x: -1000, y: -1000 };
@@ -583,62 +618,118 @@ export default function GameScreen() {
   const [isTransitioning, setIsTransitioning] = useState(false); // Estado para cuando pase de nivel 
 
   //funciona para cargar nivel 
-  const setupNextLevel = (newMap: number[][], newEnemies: any) => {
-    
-    const enemiesWithVisuals: any = {};
-    Object.keys(newEnemies).forEach(key => {
-    enemiesWithVisuals[key] = {
-      body: newEnemies[key].body,
-      renderer: EnemyRenderer // <--- ESTO es lo que le faltaba "inyectar" al Nivel 2
-    };
-  });
-  
-    setMapMatrix(newMap);
-    setEnemiesData(enemiesWithVisuals);
-    
-    // Resetear posición del jugador al inicio del mapa
-    // (Podemos pedirle a la IA que también nos dé el spawn point)
-    setGameKey(prev => prev + 1); 
-    setIsTransitioning(false);
-    setRunning(true);
+  const setupNextLevel = async (playerStats: any) => {
+    const nextLevel = currentLevel + 1;
+    console.log("Siguiente nivel...", nextLevel);
+
+    // 1. Llamamos a la IA
+    const aiData = await LevelGenerator.fetchAILevel(nextLevel, playerStats);
+
+    if (aiData && aiData.matrix && aiData.enemies) {
+      console.log("Datos de IA recibidos correctamente");
+      
+      // 2. Convertir enemigos de IA al formato del juego
+      const aiEnemies: any = {};
+      aiData.enemies.forEach((en: any, index: number) => {
+        aiEnemies[`enemy_ai_${index}`] = {
+          body: { 
+            position: { x: en.x, y: en.y },
+            waypoints: en.waypoints || [
+              { x: en.x, y: en.y },
+              { x: en.x + 100, y: en.y }
+            ],
+            nextPointIndex: 0,
+            speed: en.speed || 1.2,
+            health: 3, 
+            radius: 10, 
+            detectionRange: 150 
+          },
+          renderer: EnemyRenderer
+        };
+      });
+
+      // 3. Actualizar estados
+      setMapMatrix(aiData.matrix);
+      setEnemiesData(aiEnemies);
+      setCurrentLevel(nextLevel);
+      setPlayerHP(100); // Restaurar vida al pasar de nivel
+      
+      // 4. Reiniciar el juego con los nuevos datos
+      setGameKey(prev => prev + 1); 
+      setIsTransitioning(false);
+      setRunning(true);
+
+    } else {
+      // Si la IA falla, cargar un fallback
+      console.log("Error con IA, cargando nivel de respaldo");
+      const fallback = LevelGenerator.generateLevel2Fallback();
+      
+      // Convertir enemigos del fallback
+      const fallbackEnemies: any = {};
+      fallback.enemies.forEach((en: any, index: number) => {
+        fallbackEnemies[`enemy_fallback_${index}`] = {
+          body: { 
+            position: { x: en.x, y: en.y },
+            waypoints: en.waypoints || [
+              { x: en.x, y: en.y },
+              { x: en.x + 100, y: en.y }
+            ],
+            nextPointIndex: 0,
+            speed: en.speed || 1.2,
+            health: 3, 
+            radius: 10, 
+            detectionRange: 150 
+          },
+          renderer: EnemyRenderer
+        };
+      });
+
+      setMapMatrix(fallback.map);
+      setEnemiesData(fallbackEnemies);
+      setCurrentLevel(nextLevel);
+      setPlayerHP(100);
+      setGameKey(prev => prev + 1);
+      setIsTransitioning(false);
+      setRunning(true);
+    }
   };
 
-  // --- ENTIDADES INICIALES (Ahora usan los estados) ---
-  const getEntities = () => {
-    const enemiesCopy = JSON.parse(JSON.stringify(enemiesData));
-    
-    const enemyEntities: any = {};
-    Object.keys(enemiesCopy).forEach(key => {
-      enemyEntities[key] = {
-        body: enemiesCopy[key].body,
-        renderer: EnemyRenderer
-      };
-    });
-    return {
-      map: { renderer: MapRenderer },
-      player: {
-        body: {
-          position: { x: 50, y: SCREEN_HEIGHT / 2 }, // Spawn fijo o dinámico
-          velocity: { x: 0, y: 0 },
-          radius: CONFIG.PLAYER_SIZE / 2,
-          health: playerHP, // Mantener la vida entre niveles
-          animation: { state: "idle", direction: "right", frameIndex: 0, timer: 0 },
-          dash: { isDashing: false, timeLeft: 0, cooldown: 0, facing: { x: 1, y: 0 }, requested: false, dashCount: 0 },
-          kills: 0,
-          survivalTime: 0,
-          reachedPortal: false,
-          attackCounted: 0,
-          hitsLanded: 0,
+    // --- ENTIDADES INICIALES (Ahora usan los estados) ---
+    const getEntities = () => {
+      const enemiesCopy = JSON.parse(JSON.stringify(enemiesData));
+      
+      const enemyEntities: any = {};
+      Object.keys(enemiesCopy).forEach(key => {
+        enemyEntities[key] = {
+          body: enemiesCopy[key].body,
+          renderer: EnemyRenderer
+        };
+      });
+      return {
+        map: { matrix: mapMatrix, level: currentLevel, renderer: MapRenderer },
+        player: {
+          body: {
+            position: { x: 50, y: SCREEN_HEIGHT / 2 }, // Spawn fijo o dinámico
+            velocity: { x: 0, y: 0 },
+            radius: CONFIG.PLAYER_SIZE / 2,
+            health: playerHP, // Mantener la vida entre niveles
+            animation: { state: "idle", direction: "right", frameIndex: 0, timer: 0 },
+            dash: { isDashing: false, timeLeft: 0, cooldown: 0, facing: { x: 1, y: 0 }, requested: false, dashCount: 0 },
+            kills: 0,
+            survivalTime: 0,
+            reachedPortal: false,
+            attackCounted: 0,
+            hitsLanded: 0,
+          },
+          renderer: PlayerRenderer,
         },
-        renderer: PlayerRenderer,
-      },
-      ...enemyEntities, // Esparcimos los enemigos del estado
-      mapData: { matrix: mapMatrix },
-      portal: {
-        body: { position: { x: SCREEN_WIDTH - 50, y: SCREEN_HEIGHT / 2 }, size: 60 },
-        renderer: () => null
-      }
-    };
+        ...enemyEntities, // Esparcimos los enemigos del estado
+        mapData: { matrix: mapMatrix },
+        portal: {
+          body: { position: { x: SCREEN_WIDTH - 50, y: SCREEN_HEIGHT / 2 }, size: 60 },
+          renderer: () => null
+        }
+      };
   };
 
   const InputSystem = (entities: GameEntities) => {
@@ -676,21 +767,16 @@ export default function GameScreen() {
     //sincronizar portal con fin de nivel 
     if (player.reachedPortal && !isTransitioning) {
     setIsTransitioning(true);
-    setRunning(false); // Pausamos el juego mientras "carga"
     
-    // Aquí se llamara a la IA
-    console.log("Iniciando carga de Nivel 2 con IA...");
+    // Preparamos los datos de Finn para la IA
+    const statsForAI = {
+      kills: player.kills,
+      dashes: player.dash.dashCount,
+      time: Math.floor(player.survivalTime / 1000)
+    };
 
-    ///prueba de nuevo mapa
-    // SIMULACIÓN: En 2 segundos cargamos un "Mapa Vacío" (Nivel 2)
-  setTimeout(() => {
-    const { map, enemies } = LevelGenerator.generateLevel2();
-    
-    setCurrentLevel(2);
-    setupNextLevel(map, enemies);
-    
-    console.log("¡Nivel 2 cargado con éxito!");
-  }, 2000);
+    // Ejecutamos la carga (fuera del ciclo de 60fps)
+    setupNextLevel(statsForAI);
 
   }
     
