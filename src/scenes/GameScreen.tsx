@@ -72,18 +72,51 @@ const INITIAL_MAP = [
 
 // === RENDERER DEL ENEMIGO ===
 const EnemyRenderer = ({ body }: { body: any }) => {
+  if (body.health <= 0) return null;
+
+  //barra de vida enemigo 
+  const MAX_HEALTH = 3;
+  const healthPercentage = (body.health / MAX_HEALTH) * 100;
+  
   return (
     <View style={{
       position: 'absolute',
       left: body.position.x,
       top: body.position.y,
-      width: body.radius * 2, // Ajustado al radio
+      width: body.radius * 2,
       height: body.radius * 2,
-      backgroundColor: 'green',
-      borderRadius: body.radius,
-      borderWidth: 1,
-      borderColor: '#00ff00',
-    }} />
+      alignItems: 'center',
+    }}>
+      {/* CONTENEDOR DE LA BARRA DE VIDA */}
+      <View style={{
+        position: 'absolute',
+        top: -10, // La posicionamos 10 pixeles arriba del enemigo
+        width: 30, // Ancho fijo de la barra
+        height: 5,
+        backgroundColor: '#444', // Fondo oscuro (barra vacía)
+        borderRadius: 2,
+        borderWidth: 1,
+        borderColor: '#000',
+        overflow: 'hidden'
+      }}>
+        {/* PARTE LLENA DE LA BARRA */}
+        <View style={{
+          width: `${healthPercentage}%`,
+          height: '100%',
+          backgroundColor: body.health > 1 ? '#00ff00' : '#ff0000', // Verde si está sano, rojo si agoniza
+        }} />
+      </View>
+
+      {/* CUERPO DEL ENEMIGO */}
+      <View style={{
+        width: '100%',
+        height: '100%',
+        backgroundColor: 'green',
+        borderRadius: body.radius,
+        borderWidth: 1,
+        borderColor: '#00ff00',
+      }} />
+    </View>
   );
 };
 
@@ -158,10 +191,12 @@ interface PlayerBody {
     cooldown: number;
     facing: { x: number; y: number }; // Hacia dónde miramos para impulsarnos
     requested: boolean; // Si se presionó el botón
+    dashCount: number; // Contador de dashes realizados
   };
   attackRequested: boolean;
   health: number;
-
+  attackCount: number; 
+  hitsLanded: number; 
   kills: number;        // Contador de enemigos eliminados
   survivalTime: number; // Tiempo sobreviviendo (ms)
   isWinner?: boolean;   // para indicar si ganó
@@ -349,6 +384,11 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
     player.dash.isDashing = true;
     player.dash.timeLeft = CONFIG.DASH_DURATION;
     player.dash.cooldown = CONFIG.DASH_COOLDOWN; // Reiniciar cooldown
+    
+    player.dash.dashCount = (player.dash.dashCount || 0) + 1;
+    console.log("Dashes realizados en este nivel:", player.dash.dashCount);
+    player.dash.requested = false;
+
     player.animation.state = "dash"; // Forzar animación
   }
   player.dash.requested = false; // Limpiar petición
@@ -376,32 +416,32 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
     }
   }
 
-  // --- 2. MOVIMIENTO Y COLISIONES ---
-const nextX = player.position.x + finalVelocity.x;
-const nextY = player.position.y + finalVelocity.y;
+      // --- 2. MOVIMIENTO Y COLISIONES ---
+    const nextX = player.position.x + finalVelocity.x;
+    const nextY = player.position.y + finalVelocity.y;
 
-const cellWidth = SCREEN_WIDTH / 32;
-const cellHeight = SCREEN_HEIGHT / 21;
-const checkX = finalVelocity.x > 0 ? nextX + player.radius * 2 : nextX;
-const checkY = finalVelocity.y > 0 ? nextY + player.radius * 2 : nextY;
-const gridX = Math.floor(checkX / cellWidth);
-const gridY = Math.floor(checkY / cellHeight);
+    const cellWidth = SCREEN_WIDTH / 32;
+    const cellHeight = SCREEN_HEIGHT / 21;
+    const checkX = finalVelocity.x > 0 ? nextX + player.radius * 2 : nextX;
+    const checkY = finalVelocity.y > 0 ? nextY + player.radius * 2 : nextY;
+    const gridX = Math.floor(checkX / cellWidth);
+    const gridY = Math.floor(checkY / cellHeight);
 
-// BUSCAMOS LA MATRIZ DINÁMICA QUE PASAMOS EN ENTITIES
-const currentMap = entities.mapData?.matrix || INITIAL_MAP; 
+  // BUSCAMOS LA MATRIZ DINÁMICA QUE PASAMOS EN ENTITIES
+  const currentMap = entities.mapData?.matrix || INITIAL_MAP; 
 
-if (finalVelocity.x !== 0 || finalVelocity.y !== 0) {
-  if (
-    gridY >= 0 && gridY < currentMap.length &&
-    gridX >= 0 && gridX < currentMap[0].length &&
-    currentMap[gridY][gridX] === 0 // <-- Usamos currentMap
-  ) {
-    player.position.x = nextX;
-    player.position.y = nextY;
-  } else {
-    if (player.dash.isDashing) player.dash.isDashing = false;
+  if (finalVelocity.x !== 0 || finalVelocity.y !== 0) {
+    if (
+      gridY >= 0 && gridY < currentMap.length &&
+      gridX >= 0 && gridX < currentMap[0].length &&
+      currentMap[gridY][gridX] === 0 // <-- Usamos currentMap
+    ) {
+      player.position.x = nextX;
+      player.position.y = nextY;
+    } else {
+      if (player.dash.isDashing) player.dash.isDashing = false;
+    }
   }
-}
 
   // --- 3. ANIMACIÓN ---
   const isMoving = finalVelocity.x !== 0 || finalVelocity.y !== 0;
@@ -424,80 +464,84 @@ if (finalVelocity.x !== 0 || finalVelocity.y !== 0) {
     player.animation.frameIndex++;
   }
 
+  if (player.attackRequested) {
+    player.animation.state = "attack";
+    player.animation.frameIndex = 0; // Reiniciar animación
+    player.attackCount = (player.attackCount || 0) + 1;
+    console.log("Total de golpes intentados:", player.attackCount);
+  }
+  
+    // == Logica para cada enemigo ==
+    Object.keys(entities).forEach(key => {
+      if (key.startsWith("enemy")) {
+        const enemy = entities[key].body;
+        
+        if (enemy.health <= 0) return;
 
-  // == Logica para cada enemigo ==
-  Object.keys(entities).forEach(key => {
-    if (key.startsWith("enemy")) {
-      const enemy = entities[key].body;
-      if (enemy.health <= 0) return; // Si ya murió, lo ignoramos
+              // 1. Persecución (ya tienes la lógica, solo aplícala a 'enemy')
+        const dx = player.position.x - enemy.position.x;
+        const dy = player.position.y - enemy.position.y;
+        const distanceToPlayer = Math.hypot(dx, dy);
 
-      // 1. Persecución (ya tienes la lógica, solo aplícala a 'enemy')
-      const dx = player.position.x - enemy.position.x;
-      const dy = player.position.y - enemy.position.y;
-      const distanceToPlayer = Math.hypot(dx, dy);
+        if (distanceToPlayer < enemy.detectionRange) {
+        // MODO PERSECUCIÓN
+        const vX = (dx / distanceToPlayer) * enemy.speed;
+        const vY = (dy / distanceToPlayer) * enemy.speed;
+        enemy.position.x += vX;
+        enemy.position.y += vY;
+      } else if (enemy.waypoints && enemy.waypoints.length > 0) {
+        // MODO PATRULLA POR WAYPOINTS
+        const target = enemy.waypoints[enemy.nextPointIndex];
+        const tDx = target.x - enemy.position.x;
+        const tDy = target.y - enemy.position.y;
+        const distanceToTarget = Math.hypot(tDx, tDy);
 
-      if (distanceToPlayer < enemy.detectionRange) {
-      // MODO PERSECUCIÓN
-      const vX = (dx / distanceToPlayer) * enemy.speed;
-      const vY = (dy / distanceToPlayer) * enemy.speed;
-      enemy.position.x += vX;
-      enemy.position.y += vY;
-    } else if (enemy.waypoints && enemy.waypoints.length > 0) {
-      // MODO PATRULLA POR WAYPOINTS
-      const target = enemy.waypoints[enemy.nextPointIndex];
-      const tDx = target.x - enemy.position.x;
-      const tDy = target.y - enemy.position.y;
-      const distanceToTarget = Math.hypot(tDx, tDy);
-
-      if (distanceToTarget < 5) {
-        // Si llegó al punto, que pase al siguiente (vuelve a 0 al final)
-        enemy.nextPointIndex = (enemy.nextPointIndex + 1) % enemy.waypoints.length;
-      } else {
-        // Moverse hacia el punto del circuito
-        enemy.position.x += (tDx / distanceToTarget) * (enemy.speed * 0.7); // Un poco más lento al patrullar
-        enemy.position.y += (tDy / distanceToTarget) * (enemy.speed * 0.7);
+        if (distanceToTarget < 5) {
+          // Si llegó al punto, que pase al siguiente (vuelve a 0 al final)
+          enemy.nextPointIndex = (enemy.nextPointIndex + 1) % enemy.waypoints.length;
+        } else {
+          // Moverse hacia el punto del circuito
+          enemy.position.x += (tDx / distanceToTarget) * (enemy.speed * 0.7); // Un poco más lento al patrullar
+          enemy.position.y += (tDy / distanceToTarget) * (enemy.speed * 0.7);
+        }
       }
-    }
 
-      // 2. Daño al jugador
-      if (distanceToPlayer < 18) { 
-        player.health -= 0.5; // Ajustado para que no mueras tan rápido con 3
-      }
+        // 2. Daño al jugador
+        if (distanceToPlayer < 18) { 
+          player.health -= 0.5; // Ajustado para que no mueras tan rápido con 3
+        }
 
-      // 3. Recibir daño del jugador (4 golpes para morir)
-      if (player.attackRequested && distanceToPlayer < 50) {
+        // 3. Recibir daño del jugador (4 golpes para morir)
+        if (player.attackRequested && distanceToPlayer < 60) {
         enemy.health -= 1; 
-        player.attackRequested = false;
+        player.hitsLanded += 1;
+        
+        // Empuje (Knockback)
         const knockbackForce = 35;
-
-        const angle = Math.atan2(
-          enemy.position.y - player.position.y,
-          enemy.position.x - player.position.x
-        );
-        // Aplicamos el empujón instantáneo
+        const angle = Math.atan2(dy, dx); // dy y dx ya los calculamos arriba
         enemy.position.x += Math.cos(angle) * knockbackForce;
         enemy.position.y += Math.sin(angle) * knockbackForce;
-        
-        // Consumimos el ataque para que solo sea un golpe por click
-        player.attackRequested = false;
+
+        console.log(`${key} recibió daño. Vida restante: ${enemy.health}`);
 
         if (enemy.health <= 0) {
           enemy.position = { x: -1000, y: -1000 };
           player.kills += 1;
         }
       }
+}
+});
+
+    // AL FINAL de procesar todos los enemigos, apagamos la señal del cuerpo
+    if (player.attackRequested) {
+            player.attackRequested = false;
     }
-  });
 
-
-
-    // SIEMPRE completar la animación de ataque, independientemente del enemigo
-    if (player.animation.frameIndex >= 3) {
-      player.attackRequested = false;
+    // Resetear animación cuando termine el ataque (si usas 4 frames por ejemplo)
+    if (player.animation.state === "attack" && player.animation.frameIndex >= 3) {
       player.animation.state = "idle";
       player.animation.frameIndex = 0;
     }
-  
 
   /// --- FIN DE NIVEL ---
   const portal = entities.portal?.body;
@@ -579,10 +623,12 @@ export default function GameScreen() {
           radius: CONFIG.PLAYER_SIZE / 2,
           health: playerHP, // Mantener la vida entre niveles
           animation: { state: "idle", direction: "right", frameIndex: 0, timer: 0 },
-          dash: { isDashing: false, timeLeft: 0, cooldown: 0, facing: { x: 1, y: 0 }, requested: false },
+          dash: { isDashing: false, timeLeft: 0, cooldown: 0, facing: { x: 1, y: 0 }, requested: false, dashCount: 0 },
           kills: 0,
           survivalTime: 0,
           reachedPortal: false,
+          attackCounted: 0,
+          hitsLanded: 0,
         },
         renderer: PlayerRenderer,
       },
@@ -672,9 +718,12 @@ export default function GameScreen() {
           cooldown: 0,
           facing: { x: 1, y: 0 }, // Empieza mirando a la derecha
           requested: false,
+          dashCount: 0,
         },
         health: 100,
         attackRequested: false,
+        attackCount: 0,
+        hitsLanded: 0,
         // En initialEntities -> player -> body:
         kills: 0,
         survivalTime: 0,
