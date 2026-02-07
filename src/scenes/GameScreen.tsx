@@ -604,30 +604,31 @@ export default function GameScreen() {
   const [accumulatedStats, setAccumulatedStats] = useState({ kills: 0, time: 0 }); //Estado para guardar estadísticas entre niveles
 
 // === FUNCIÓN SETUP NEXT LEVEL SIMPLIFICADA ===
-// Modificamos la función para recibir argumentos
-const setupNextLevel = (currentKills: number, currentTime: number) => {
+const setupNextLevel = (currentKills: number, currentTime: number, currentHealth: number) => {
     setRunning(false);
     
     const nextLevel = currentLevel + 1;
     const randomIndex = Math.floor(Math.random() * BACKGROUND_IMAGES.length);
     const selectedBg = BACKGROUND_IMAGES[randomIndex];
     
-    // GUARDAMOS EL PROGRESO ACTUAL PARA EL SIGUIENTE NIVEL
+    // Guardamos progreso de estadísticas
     setAccumulatedStats({ 
         kills: currentKills, 
         time: currentTime 
     });
 
-    console.log("Nivel completado. Kills totales:", currentKills);
+    console.log("Nivel completado. Vida restante:", currentHealth);
 
     setTimeout(() => {
         setCurrentBackground(selectedBg);
         setMapMatrix(INITIAL_MAP);
         
-        // Reiniciamos enemigos y vida (Esto cumple tu petición de restaurar vidas)
+        // Reiniciamos solo a los enemigos
         const freshEnemies = JSON.parse(JSON.stringify(INITIAL_ENEMIES));
         setEnemiesData(freshEnemies);
-        setPlayerHP(100); // <--- AQUÍ SE RESTAURAN LAS VIDAS AL 100%
+        
+        // CORRECCIÓN: Ahora establecemos la vida con la que terminó el nivel anterior
+        setPlayerHP(currentHealth); 
         
         setCurrentLevel(nextLevel);
         setGameKey(prev => prev + 1); 
@@ -718,7 +719,7 @@ const setupNextLevel = (currentKills: number, currentTime: number) => {
        // Activamos la bandera VISUAL primero
         setIsTransitioning(true); 
        // Llamamos a la lógica (que ahora tiene el setTimeout)
-        setupNextLevel(player.kills, player.survivalTime);
+        setupNextLevel(player.kills, player.survivalTime, player.health);
     }
     
     return entities;
