@@ -44,7 +44,13 @@ const SPRITES = {
   // Nueva categoría exclusiva para el Dash
   dash: [require("../../assets/player/walk_6_dash.png")],
 };
-
+// === ARREGLO DE FONDOS ===
+const BACKGROUND_IMAGES = [
+  require("../../assets/mapa_bosque.png"),
+  require("../../assets/mapa_bosque2.png"),
+  require("../../assets/mapa_bosque3.png"),
+  require("../../assets/mapa_bosque4.png"),
+];
 // === MATRIZ DEL MAPA ===
 const INITIAL_MAP = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -226,46 +232,23 @@ interface GameEntities {
   };
 }
 
-// === RENDERER DEL MAPA ===
-// 1. Importa tus tiles (ajusta la ruta según tu proyecto)
-const TILE_WALL = require("../../assets/levels/tile_arbustos.png"); 
-const TILE_FLOOR = require("../../assets/levels/tile_suelo.png");
-
-const MapRenderer = ({ matrix, level }: { matrix: number[][], level: number }) => {
-  if (level === 1) {
-    return (
+// === RENDERER DEL MAPA SIMPLIFICADO ===
+// Recibe 'matrix' porque el GameEngine lo pasa, pero no lo usamos visualmente.
+const MapRenderer = ({ backgroundImage }: { backgroundImage: any }) => {
+  return (
+    <View style={{ position: "absolute", width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
       <Image
-        source={require("../../assets/mapa_bosque.png")}
+        source={backgroundImage}
         style={{
-          position: "absolute", top: 0, left: 0,
-          width: SCREEN_WIDTH, height: SCREEN_HEIGHT,
-          resizeMode: "stretch", zIndex: -1,
+          position: "absolute", 
+          top: 0, 
+          left: 0,
+          width: SCREEN_WIDTH, 
+          height: SCREEN_HEIGHT,
+          resizeMode: "stretch", 
+          zIndex: -1,
         }}
       />
-    );
-  }
-
-  const cellWidth = SCREEN_WIDTH / 32;
-  const cellHeight = SCREEN_HEIGHT / 21;
-
-  return (
-    <View style={{ position: "absolute", width: SCREEN_WIDTH, height: SCREEN_HEIGHT, backgroundColor: '#000' }}>
-      {matrix.map((row, rowIndex) =>
-        row.map((cell, colIndex) => (
-          <Image
-            key={`${rowIndex}-${colIndex}`}
-            source={cell === 1 ? TILE_WALL : TILE_FLOOR} // Aquí decide qué imagen poner
-            style={{
-              position: "absolute",
-              left: colIndex * cellWidth,
-              top: rowIndex * cellHeight,
-              width: cellWidth + 0.5, // El +0.5 evita que se vean grietas entre cuadros
-              height: cellHeight + 0.5,
-              resizeMode: "cover",
-            }}
-          />
-        ))
-      )}
     </View>
   );
 };
@@ -604,6 +587,7 @@ export default function GameScreen() {
   const [currentLevel, setCurrentLevel] = useState(1);
   const [mapMatrix, setMapMatrix] = useState(INITIAL_MAP);
   const [enemiesData, setEnemiesData] = useState(INITIAL_ENEMIES);
+  
 
   const [playerHP, setPlayerHP] = useState(100);
   const [running, setRunning] = useState(true);
@@ -616,82 +600,34 @@ export default function GameScreen() {
   const [finalStats, setFinalStats] = useState({ kills: 0, time: 0 }); // Para guardar el récord
   const [isPaused, setIsPaused] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false); // Estado para cuando pase de nivel 
+  const [currentBackground, setCurrentBackground] = useState(BACKGROUND_IMAGES[0]);
 
-  //funciona para cargar nivel 
-  const setupNextLevel = async (playerStats: any) => {
+// === FUNCIÓN SETUP NEXT LEVEL SIMPLIFICADA ===
+  // Ya no es async porque no llamamos a la IA
+  const setupNextLevel = () => {
     const nextLevel = currentLevel + 1;
-    console.log("Siguiente nivel...", nextLevel);
+    console.log("Cargando nivel aleatorio...", nextLevel);
 
-    // 1. Llamamos a la IA
-    const aiData = await LevelGenerator.fetchAILevel(nextLevel, playerStats);
+    // 1. Elegir un fondo aleatorio de los 4 disponibles
+    const randomIndex = Math.floor(Math.random() * BACKGROUND_IMAGES.length);
+    const selectedBg = BACKGROUND_IMAGES[randomIndex];
+    setCurrentBackground(selectedBg);
 
-    if (aiData && aiData.matrix && aiData.enemies) {
-      console.log("Datos de IA recibidos correctamente");
-      
-      // 2. Convertir enemigos de IA al formato del juego
-      const aiEnemies: any = {};
-      aiData.enemies.forEach((en: any, index: number) => {
-        aiEnemies[`enemy_ai_${index}`] = {
-          body: { 
-            position: { x: en.x, y: en.y },
-            waypoints: en.waypoints || [
-              { x: en.x, y: en.y },
-              { x: en.x + 100, y: en.y }
-            ],
-            nextPointIndex: 0,
-            speed: en.speed || 1.2,
-            health: 3, 
-            radius: 10, 
-            detectionRange: 150 
-          },
-          renderer: EnemyRenderer
-        };
-      });
+    // 2. Reiniciar Enemigos
+    // Como usamos el mismo mapa (misma matriz), usamos los mismos enemigos iniciales.
+    // Hacemos una copia fresca para que revivan y vuelvan a su posición.
+    const freshEnemies = JSON.parse(JSON.stringify(INITIAL_ENEMIES));
 
-      // 3. Actualizar estados
-      setMapMatrix(aiData.matrix);
-      setEnemiesData(aiEnemies);
-      setCurrentLevel(nextLevel);
-      setPlayerHP(100); // Restaurar vida al pasar de nivel
-      
-      // 4. Reiniciar el juego con los nuevos datos
-      setGameKey(prev => prev + 1); 
-      setIsTransitioning(false);
-      setRunning(true);
-
-    } else {
-      // Si la IA falla, cargar un fallback
-      console.log("Error con IA, cargando nivel de respaldo");
-      const fallback = LevelGenerator.generateLevel2Fallback();
-      
-      // Convertir enemigos del fallback
-      const fallbackEnemies: any = {};
-      fallback.enemies.forEach((en: any, index: number) => {
-        fallbackEnemies[`enemy_fallback_${index}`] = {
-          body: { 
-            position: { x: en.x, y: en.y },
-            waypoints: en.waypoints || [
-              { x: en.x, y: en.y },
-              { x: en.x + 100, y: en.y }
-            ],
-            nextPointIndex: 0,
-            speed: en.speed || 1.2,
-            health: 3, 
-            radius: 10, 
-            detectionRange: 150 
-          },
-          renderer: EnemyRenderer
-        };
-      });
-
-      setMapMatrix(fallback.map);
-      setEnemiesData(fallbackEnemies);
-      setCurrentLevel(nextLevel);
-      setPlayerHP(100);
-      setGameKey(prev => prev + 1);
-      setIsTransitioning(false);
-      setRunning(true);
-    }
+    // 3. Actualizar estados
+    setMapMatrix(INITIAL_MAP); // Mantenemos la misma matriz de colisiones
+    setEnemiesData(freshEnemies);
+    setCurrentLevel(nextLevel);
+    setPlayerHP(100); // Restaurar vida
+    
+    // 4. Reiniciar el motor del juego
+    setGameKey(prev => prev + 1); 
+    setIsTransitioning(false);
+    setRunning(true);
   };
 
     // --- ENTIDADES INICIALES (Ahora usan los estados) ---
@@ -706,7 +642,7 @@ export default function GameScreen() {
         };
       });
       return {
-        map: { matrix: mapMatrix, level: currentLevel, renderer: MapRenderer },
+        map: { matrix: mapMatrix, backgroundImage: currentBackground, renderer: MapRenderer },
         player: {
           body: {
             position: { x: 50, y: SCREEN_HEIGHT / 2 }, // Spawn fijo o dinámico
@@ -768,16 +704,7 @@ export default function GameScreen() {
     if (player.reachedPortal && !isTransitioning) {
     setIsTransitioning(true);
     
-    // Preparamos los datos de Finn para la IA
-    const statsForAI = {
-      kills: player.kills,
-      dashes: player.dash.dashCount,
-      time: Math.floor(player.survivalTime / 1000)
-    };
-
-    // Ejecutamos la carga (fuera del ciclo de 60fps)
-    setupNextLevel(statsForAI);
-
+    setupNextLevel();
   }
     
     return entities;
