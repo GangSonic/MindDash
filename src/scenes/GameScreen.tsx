@@ -601,36 +601,39 @@ export default function GameScreen() {
   const [isPaused, setIsPaused] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false); // Estado para cuando pase de nivel 
   const [currentBackground, setCurrentBackground] = useState(BACKGROUND_IMAGES[0]);
+  const [accumulatedStats, setAccumulatedStats] = useState({ kills: 0, time: 0 }); //Estado para guardar estadísticas entre niveles
 
 // === FUNCIÓN SETUP NEXT LEVEL SIMPLIFICADA ===
-const setupNextLevel = () => {
-    // 1. Pausamos el motor inmediatamente para ahorrar recursos
+// Modificamos la función para recibir argumentos
+const setupNextLevel = (currentKills: number, currentTime: number) => {
     setRunning(false);
     
-    // 2. Calculamos variables (esto es rápido)
     const nextLevel = currentLevel + 1;
     const randomIndex = Math.floor(Math.random() * BACKGROUND_IMAGES.length);
     const selectedBg = BACKGROUND_IMAGES[randomIndex];
-    const freshEnemies = JSON.parse(JSON.stringify(INITIAL_ENEMIES));
+    
+    // GUARDAMOS EL PROGRESO ACTUAL PARA EL SIGUIENTE NIVEL
+    setAccumulatedStats({ 
+        kills: currentKills, 
+        time: currentTime 
+    });
 
-    console.log("Preparando nivel...", nextLevel);
+    console.log("Nivel completado. Kills totales:", currentKills);
 
-    // 3. Usamos setTimeout para dar tiempo a que aparezca la pantalla de carga "INGRESANDO AL TÚNEL"
     setTimeout(() => {
         setCurrentBackground(selectedBg);
         setMapMatrix(INITIAL_MAP);
+        
+        // Reiniciamos enemigos y vida (Esto cumple tu petición de restaurar vidas)
+        const freshEnemies = JSON.parse(JSON.stringify(INITIAL_ENEMIES));
         setEnemiesData(freshEnemies);
+        setPlayerHP(100); // <--- AQUÍ SE RESTAURAN LAS VIDAS AL 100%
+        
         setCurrentLevel(nextLevel);
-        setPlayerHP(100);
-        
-        // Reiniciamos el motor
         setGameKey(prev => prev + 1); 
-        
-        // Quitamos la pantalla de carga y arrancamos
         setIsTransitioning(false);
         setRunning(true);
-        
-    }, 1000); // 1 segundo de "pantalla de carga" falsa para que se sienta fluido, puedes bajarlo a 500ms
+    }, 1000); 
   };
 
     // --- ENTIDADES INICIALES (Ahora usan los estados) ---
@@ -648,14 +651,20 @@ const setupNextLevel = () => {
         map: { matrix: mapMatrix, backgroundImage: currentBackground, renderer: MapRenderer },
         player: {
           body: {
-            position: { x: 50, y: SCREEN_HEIGHT / 2 }, // Spawn fijo o dinámico
+            // ... posición, velocidad, radius ...
+            position: { x: 50, y: SCREEN_HEIGHT / 2 },
             velocity: { x: 0, y: 0 },
             radius: CONFIG.PLAYER_SIZE / 2,
-            health: playerHP, // Mantener la vida entre niveles
+            health: playerHP, 
+            
+            // ... animation, dash ...
             animation: { state: "idle", direction: "right", frameIndex: 0, timer: 0 },
             dash: { isDashing: false, timeLeft: 0, cooldown: 0, facing: { x: 1, y: 0 }, requested: false, dashCount: 0 },
-            kills: 0,
-            survivalTime: 0,
+
+            // AQUÍ EL CAMBIO: Cargamos los valores acumulados en lugar de 0
+            kills: accumulatedStats.kills,      
+            survivalTime: accumulatedStats.time, 
+            
             reachedPortal: false,
             attackCounted: 0,
             hitsLanded: 0,
@@ -709,9 +718,8 @@ const setupNextLevel = () => {
        // Activamos la bandera VISUAL primero
         setIsTransitioning(true); 
        // Llamamos a la lógica (que ahora tiene el setTimeout)
-        setupNextLevel();
+        setupNextLevel(player.kills, player.survivalTime);
     }
-
     
     return entities;
   };
@@ -865,7 +873,10 @@ const handlePause = () => {
               const freshEnemies = JSON.parse(JSON.stringify(INITIAL_ENEMIES));
               setMapMatrix(INITIAL_MAP);
               setEnemiesData(freshEnemies);
-              setGameKey((prev) => prev + 1); // Reinicio mágico
+              
+              setAccumulatedStats({ kills: 0, time: 0 }); // <--- RESETEAR A CERO
+              
+              setGameKey((prev) => prev + 1);
               setIsPaused(false);
               setPlayerHP(100);
               setRunning(true);
@@ -883,7 +894,6 @@ const handlePause = () => {
           </Pressable>
         </View>
       )}
-      {/* 2. AQUÍ PEGAMOS EL GAME OVER (Afuera de todo, al final) */}
       {gameOver && (
         <View style={styles.gameOverContainer}>
           <Text style={styles.gameOverText}>¡GAME OVER!</Text>
@@ -895,6 +905,10 @@ const handlePause = () => {
             onPress={() => {
               const freshEnemies = JSON.parse(JSON.stringify(INITIAL_ENEMIES));
               setMapMatrix(INITIAL_MAP);
+              setEnemiesData(freshEnemies); // Importante resetear enemigos también
+              
+              setAccumulatedStats({ kills: 0, time: 0 }); // <--- RESETEAR A CERO
+              
               setGameKey((prev) => prev + 1);
               setGameOver(false);
               setPlayerHP(100); 
@@ -913,7 +927,6 @@ const handlePause = () => {
     {isTransitioning && (
       <View style={styles.loadingOverlay}>
         <Text style={styles.loadingText}>INGRESANDO AL TÚNEL...</Text>
-        <Text style={styles.subLoadingText}>Generando siguiente zona con IA</Text>
         {/* Aquí podrías poner un ActivityIndicator de React Native */}
         <Pressable 
           style={styles.cancelLoadingBtn} 
