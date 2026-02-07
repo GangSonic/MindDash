@@ -46,7 +46,7 @@ const SPRITES = {
 };
 // === ARREGLO DE FONDOS ===
 const BACKGROUND_IMAGES = [
-  require("../../assets/mapa_bosque.png"),
+  require("../../assets/mapa_bosque.jpg"),
   require("../../assets/mapa_bosque2.png"),
   require("../../assets/mapa_bosque3.png"),
   require("../../assets/mapa_bosque4.png"),
@@ -603,31 +603,34 @@ export default function GameScreen() {
   const [currentBackground, setCurrentBackground] = useState(BACKGROUND_IMAGES[0]);
 
 // === FUNCIÓN SETUP NEXT LEVEL SIMPLIFICADA ===
-  // Ya no es async porque no llamamos a la IA
-  const setupNextLevel = () => {
+const setupNextLevel = () => {
+    // 1. Pausamos el motor inmediatamente para ahorrar recursos
+    setRunning(false);
+    
+    // 2. Calculamos variables (esto es rápido)
     const nextLevel = currentLevel + 1;
-    console.log("Cargando nivel aleatorio...", nextLevel);
-
-    // 1. Elegir un fondo aleatorio de los 4 disponibles
     const randomIndex = Math.floor(Math.random() * BACKGROUND_IMAGES.length);
     const selectedBg = BACKGROUND_IMAGES[randomIndex];
-    setCurrentBackground(selectedBg);
-
-    // 2. Reiniciar Enemigos
-    // Como usamos el mismo mapa (misma matriz), usamos los mismos enemigos iniciales.
-    // Hacemos una copia fresca para que revivan y vuelvan a su posición.
     const freshEnemies = JSON.parse(JSON.stringify(INITIAL_ENEMIES));
 
-    // 3. Actualizar estados
-    setMapMatrix(INITIAL_MAP); // Mantenemos la misma matriz de colisiones
-    setEnemiesData(freshEnemies);
-    setCurrentLevel(nextLevel);
-    setPlayerHP(100); // Restaurar vida
-    
-    // 4. Reiniciar el motor del juego
-    setGameKey(prev => prev + 1); 
-    setIsTransitioning(false);
-    setRunning(true);
+    console.log("Preparando nivel...", nextLevel);
+
+    // 3. Usamos setTimeout para dar tiempo a que aparezca la pantalla de carga "INGRESANDO AL TÚNEL"
+    setTimeout(() => {
+        setCurrentBackground(selectedBg);
+        setMapMatrix(INITIAL_MAP);
+        setEnemiesData(freshEnemies);
+        setCurrentLevel(nextLevel);
+        setPlayerHP(100);
+        
+        // Reiniciamos el motor
+        setGameKey(prev => prev + 1); 
+        
+        // Quitamos la pantalla de carga y arrancamos
+        setIsTransitioning(false);
+        setRunning(true);
+        
+    }, 1000); // 1 segundo de "pantalla de carga" falsa para que se sienta fluido, puedes bajarlo a 500ms
   };
 
     // --- ENTIDADES INICIALES (Ahora usan los estados) ---
@@ -700,12 +703,15 @@ export default function GameScreen() {
       setPlayerHP(player.health);
     }
     
-    //sincronizar portal con fin de nivel 
-    if (player.reachedPortal && !isTransitioning) {
-    setIsTransitioning(true);
     
-    setupNextLevel();
-  }
+    // Sincronizar portal con fin de nivel 
+    if (player.reachedPortal && !isTransitioning) {
+       // Activamos la bandera VISUAL primero
+        setIsTransitioning(true); 
+       // Llamamos a la lógica (que ahora tiene el setTimeout)
+        setupNextLevel();
+    }
+
     
     return entities;
   };
@@ -923,7 +929,14 @@ const handlePause = () => {
       </View>
     )}
 
-    </View>
+    {/* TRUCO DE PRE-CARGA: Renderizamos todas las imágenes con tamaño 0 */}
+      <View style={{ position: 'absolute', width: 0, height: 0, opacity: 0 }}>
+        {BACKGROUND_IMAGES.map((img, index) => (
+          <Image key={index} source={img} />
+        ))}
+      </View>
+
+    </View> // Cierre de styles.container
   );
 }
 
