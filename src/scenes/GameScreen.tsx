@@ -10,6 +10,8 @@ import {
 import { GameEngine } from "react-native-game-engine";
 import { AdaptiveEnemyGenerator, MAP_BOUNDS } from '../services/Adaptiveenemygenerator';
 import LoadingScreen from "../components/LoadingScreen";
+import {Audio} from 'expo-av';
+
 // === TRUCO PARA PANTALLA ===
 const { width, height } = Dimensions.get("window");
 const SCREEN_WIDTH = Math.max(width, height);
@@ -653,6 +655,7 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
 // === PANTALLA PRINCIPAL ===
 export default function GameScreen() {
   const [isLoading, setIsLoading] = useState(true);
+  const musicRef = useRef<Audio.Sound | null>(null);
 
   //estados dinamicos 
   const [currentLevel, setCurrentLevel] = useState(1);
@@ -683,10 +686,42 @@ export default function GameScreen() {
     return () => clearTimeout(timer);
   }, []);
 
-  // SI ESTÁ CARGANDO, MOSTRAR LOADING SCREEN
-  if (isLoading) {
-    return <LoadingScreen />;
-  }
+  // Agregar este useEffect SEPARADO (reemplaza el que tienes actualmente)
+useEffect(() => {
+  if (isLoading) return;
+
+  let isMounted = true;
+
+  const playMusic = async () => {
+    try {
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+      });
+
+      const { sound } = await Audio.Sound.createAsync(
+        require("../../assets/audio/bg_music.mp3"), 
+        { 
+          isLooping: true, 
+          volume: 0.4 
+        }
+      );
+    } catch (e) {
+      console.error("Error al reproducir música:", e);
+    }
+  };
+
+  playMusic();
+
+  return () => {
+    isMounted = false;
+    if (musicRef.current) {
+      musicRef.current.stopAsync();
+      musicRef.current.unloadAsync();
+    }
+  };
+}, [isLoading]);
 
   //funciona para cargar nivel 
   const setupNextLevel = async (currentKills: number, currentTimeInSeconds: number, currentHealth: number, currentDashes: number = 0) => {
@@ -925,14 +960,27 @@ const handlePause = () => {
     if (gameOver) return; // No pausar si ya perdiste
     setIsPaused(true);
     setRunning(false); // Detiene el motor del juego
+
+    if (musicRef.current) {
+      musicRef.current.pauseAsync();
+    }
   };
 
   const handleResume = () => {
     setIsPaused(false);
     setRunning(true); // Arranca el motor
+    
+    if (musicRef.current) {
+      musicRef.current.playAsync();
+    }
   };
 
   return (
+     <View style={styles.container}>
+    {isLoading ? (
+      <LoadingScreen />
+    ) : (
+      <>
     <View style={styles.container}>
       <GameEngine
         key={gameKey}
@@ -1073,7 +1121,11 @@ const handlePause = () => {
         ))}
       </View>
 
-    </View> // Cierre de styles.container
+    </View> 
+        
+      </>
+    )}
+    </View>
   );
 }
 
