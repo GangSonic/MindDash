@@ -8,7 +8,7 @@ import {
   Image,
 } from "react-native";
 import { GameEngine } from "react-native-game-engine";
-import {LevelGenerator} from "../services/LevelLogic";
+import { AdaptiveEnemyGenerator, MAP_BOUNDS } from '../services/Adaptiveenemygenerator';
 
 // === TRUCO PARA PANTALLA ===
 const { width, height } = Dimensions.get("window");
@@ -228,45 +228,22 @@ interface GameEntities {
 
 // === RENDERER DEL MAPA ===
 // 1. Importa tus tiles (ajusta la ruta según tu proyecto)
-const TILE_WALL = require("../../assets/levels/tile_arbustos.png"); 
-const TILE_FLOOR = require("../../assets/levels/tile_suelo.png");
 
 const MapRenderer = ({ matrix, level }: { matrix: number[][], level: number }) => {
-  if (level === 1) {
-    return (
-      <Image
-        source={require("../../assets/mapa_bosque.png")}
-        style={{
-          position: "absolute", top: 0, left: 0,
-          width: SCREEN_WIDTH, height: SCREEN_HEIGHT,
-          resizeMode: "stretch", zIndex: -1,
-        }}
-      />
-    );
-  }
-
-  const cellWidth = SCREEN_WIDTH / 32;
-  const cellHeight = SCREEN_HEIGHT / 21;
-
+  // SIEMPRE el mismo mapa (tu imagen de bosque)
   return (
-    <View style={{ position: "absolute", width: SCREEN_WIDTH, height: SCREEN_HEIGHT, backgroundColor: '#000' }}>
-      {matrix.map((row, rowIndex) =>
-        row.map((cell, colIndex) => (
-          <Image
-            key={`${rowIndex}-${colIndex}`}
-            source={cell === 1 ? TILE_WALL : TILE_FLOOR} // Aquí decide qué imagen poner
-            style={{
-              position: "absolute",
-              left: colIndex * cellWidth,
-              top: rowIndex * cellHeight,
-              width: cellWidth + 0.5, // El +0.5 evita que se vean grietas entre cuadros
-              height: cellHeight + 0.5,
-              resizeMode: "cover",
-            }}
-          />
-        ))
-      )}
-    </View>
+    <Image
+      source={require("../../assets/mapa_bosque.png")}
+      style={{
+        position: "absolute", 
+        top: 0, 
+        left: 0,
+        width: SCREEN_WIDTH, 
+        height: SCREEN_HEIGHT,
+        resizeMode: "stretch", 
+        zIndex: -1,
+      }}
+    />
   );
 };
 
@@ -510,7 +487,7 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
       if (key.startsWith("enemy")) {
         const enemy = entities[key].body;
         
-        if (enemy.health <= 0) return;
+        if (enemy.isDead) return;
 
               // 1. Persecución (ya tienes la lógica, solo aplícala a 'enemy')
         const dx = player.position.x - enemy.position.x;
@@ -518,11 +495,39 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
         const distanceToPlayer = Math.hypot(dx, dy);
 
         if (distanceToPlayer < enemy.detectionRange) {
+
+        if (distanceToPlayer === 0) return;
         // MODO PERSECUCIÓN
         const vX = (dx / distanceToPlayer) * enemy.speed;
         const vY = (dy / distanceToPlayer) * enemy.speed;
+
+        const prevX = enemy.position.x;
+        const prevY = enemy.position.y;
+        
+        //mover al enemigo
         enemy.position.x += vX;
         enemy.position.y += vY;
+
+        //limites del mapa 
+        enemy.position.x = Math.max(
+          enemy.radius,
+          Math.min(SCREEN_WIDTH - enemy.radius * 2, enemy.position.x)
+        );
+
+        enemy.position.y = Math.max(
+          enemy.radius,
+          Math.min(SCREEN_HEIGHT - enemy.radius * 2, enemy.position.y)
+        );
+    
+        const stuck =
+        Math.abs(enemy.position.x - prevX) < 0.01 &&
+        Math.abs(enemy.position.y - prevY) < 0.01;
+
+        if (stuck && enemy.waypoints?.length > 0) {
+          enemy.nextPointIndex =
+            (enemy.nextPointIndex + 1) % enemy.waypoints.length;
+        }
+
       } else if (enemy.waypoints && enemy.waypoints.length > 0) {
         // MODO PATRULLA POR WAYPOINTS
         const target = enemy.waypoints[enemy.nextPointIndex];
@@ -530,15 +535,45 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
         const tDy = target.y - enemy.position.y;
         const distanceToTarget = Math.hypot(tDx, tDy);
 
-        if (distanceToTarget < 5) {
+        if (distanceToTarget === 0) {
+          enemy.nextPointIndex =
+            (enemy.nextPointIndex + 1) % enemy.waypoints.length;
+          return;
+        }
+
+        if (distanceToTarget < 25) {
           // Si llegó al punto, que pase al siguiente (vuelve a 0 al final)
           enemy.nextPointIndex = (enemy.nextPointIndex + 1) % enemy.waypoints.length;
         } else {
           // Moverse hacia el punto del circuito
-          enemy.position.x += (tDx / distanceToTarget) * (enemy.speed * 0.7); // Un poco más lento al patrullar
-          enemy.position.y += (tDy / distanceToTarget) * (enemy.speed * 0.7);
-        }
-      }
+          const pvX = (tDx / distanceToTarget) * (enemy.speed );
+          const pvY = (tDy / distanceToTarget) * (enemy.speed );
+
+          enemy.position.x += pvX;
+          enemy.position.y += pvY;
+
+          //clamp
+        enemy.position.x = Math.max(
+      MAP_BOUNDS.minX + enemy.radius + 20,
+      Math.min(MAP_BOUNDS.maxX - enemy.radius -20, enemy.position.x)
+    );
+
+    enemy.position.y = Math.max(
+      MAP_BOUNDS.minY + enemy.radius + 20,
+      Math.min(MAP_BOUNDS.maxY - enemy.radius - 20, enemy.position.y)
+    );
+
+       if (enemy.position.x < MAP_BOUNDS.minX + 30 || 
+        enemy.position.x > MAP_BOUNDS.maxX - 30 ||
+        enemy.position.y < MAP_BOUNDS.minY + 30 || 
+        enemy.position.y > MAP_BOUNDS.maxY - 30) {
+      // Si está muy cerca del borde, saltar al siguiente waypoint
+      enemy.nextPointIndex = (enemy.nextPointIndex + 1) % enemy.waypoints.length;
+      console.log(`⚠️ ${key} cerca del borde, saltando waypoint`);
+    }
+
+      }    
+    }
 
         // 2. Daño al jugador
         if (distanceToPlayer < 18) { 
@@ -556,12 +591,24 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
         enemy.position.x += Math.cos(angle) * knockbackForce;
         enemy.position.y += Math.sin(angle) * knockbackForce;
         
+        
+        const hitBoundary =
+        enemy.position.x <= MAP_BOUNDS.minX + enemy.radius ||
+        enemy.position.x >= MAP_BOUNDS.maxX - enemy.radius ||
+        enemy.position.y <= MAP_BOUNDS.minY + enemy.radius ||
+        enemy.position.y >= MAP_BOUNDS.maxY - enemy.radius;
+
+        if (hitBoundary) {
+          enemy.nextPointIndex =
+            (enemy.nextPointIndex + 1) % enemy.waypoints.length;
+        }
         //daño que recibe el enemigo 
         //console.log(`${key} recibió daño. Vida restante: ${enemy.health}`);
 
         if (enemy.health <= 0) {
-          enemy.position = { x: -1000, y: -1000 };
-          player.kills += 1;
+            enemy.health = 0;
+            enemy.isDead = true;
+            player.kills += 1;
         }
       }
 }
@@ -617,82 +664,64 @@ export default function GameScreen() {
   const [isPaused, setIsPaused] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false); // Estado para cuando pase de nivel 
 
-  //funciona para cargar nivel 
+
+  //Cargar siguiente nivel 
   const setupNextLevel = async (playerStats: any) => {
-    const nextLevel = currentLevel + 1;
-    console.log("Siguiente nivel...", nextLevel);
+  const nextLevel = currentLevel + 1;
+  console.log("\n🎮 === PASANDO AL NIVEL", nextLevel, "===");
+  console.log("Stats del jugador:", playerStats);
 
-    // 1. Llamamos a la IA
-    const aiData = await LevelGenerator.fetchAILevel(nextLevel, playerStats);
+  try {
+    // Generar enemigos con IA (el mapa se queda igual)
+    const enemies = await AdaptiveEnemyGenerator.generate(nextLevel, {
+      time: playerStats.time,
+      kills: playerStats.kills,
+      dashes: playerStats.dashes,
+    });
 
-    if (aiData && aiData.matrix && aiData.enemies) {
-      console.log("Datos de IA recibidos correctamente");
-      
-      // 2. Convertir enemigos de IA al formato del juego
-      const aiEnemies: any = {};
-      aiData.enemies.forEach((en: any, index: number) => {
-        aiEnemies[`enemy_ai_${index}`] = {
-          body: { 
-            position: { x: en.x, y: en.y },
-            waypoints: en.waypoints || [
-              { x: en.x, y: en.y },
-              { x: en.x + 100, y: en.y }
-            ],
-            nextPointIndex: 0,
-            speed: en.speed || 1.2,
-            health: 3, 
-            radius: 10, 
-            detectionRange: 150 
-          },
-          renderer: EnemyRenderer
-        };
-      });
+    console.log(`${enemies.length} enemigos generados`);
 
-      // 3. Actualizar estados
-      setMapMatrix(aiData.matrix);
-      setEnemiesData(aiEnemies);
-      setCurrentLevel(nextLevel);
-      setPlayerHP(100); // Restaurar vida al pasar de nivel
-      
-      // 4. Reiniciar el juego con los nuevos datos
-      setGameKey(prev => prev + 1); 
-      setIsTransitioning(false);
-      setRunning(true);
+    // Convertir enemigos al formato del juego
+    const gameEnemies: any = {};
+    enemies.forEach((enemy, index) => {
+      gameEnemies[`enemy_lvl${nextLevel}_${index}`] = {
+        body: {
+          position: enemy.position,
+          waypoints: enemy.waypoints,
+          nextPointIndex: enemy.nextPointIndex,
+          speed: enemy.speed,
+          health: enemy.health,
+          radius: enemy.radius,
+          detectionRange: enemy.detectionRange,
+        },
+        renderer: EnemyRenderer,
+      };
+    });
 
-    } else {
-      // Si la IA falla, cargar un fallback
-      console.log("Error con IA, cargando nivel de respaldo");
-      const fallback = LevelGenerator.generateLevel2Fallback();
-      
-      // Convertir enemigos del fallback
-      const fallbackEnemies: any = {};
-      fallback.enemies.forEach((en: any, index: number) => {
-        fallbackEnemies[`enemy_fallback_${index}`] = {
-          body: { 
-            position: { x: en.x, y: en.y },
-            waypoints: en.waypoints || [
-              { x: en.x, y: en.y },
-              { x: en.x + 100, y: en.y }
-            ],
-            nextPointIndex: 0,
-            speed: en.speed || 1.2,
-            health: 3, 
-            radius: 10, 
-            detectionRange: 150 
-          },
-          renderer: EnemyRenderer
-        };
-      });
+    // Actualizar SOLO los enemigos (el mapa sigue igual)
+    setEnemiesData(gameEnemies);
+    setCurrentLevel(nextLevel);
+    setPlayerHP(100);
+    setGameKey((prev) => prev + 1);
+    setIsTransitioning(false);
+    setRunning(true);
 
-      setMapMatrix(fallback.map);
-      setEnemiesData(fallbackEnemies);
-      setCurrentLevel(nextLevel);
-      setPlayerHP(100);
-      setGameKey(prev => prev + 1);
-      setIsTransitioning(false);
-      setRunning(true);
-    }
-  };
+    console.log("🎮 === NIVEL LISTO ===\n");
+
+  } catch (error) {
+    console.error("Error:", error);
+    
+    // Si todo falla, usar tus enemigos originales
+    const freshEnemies = JSON.parse(JSON.stringify(INITIAL_ENEMIES));
+    setEnemiesData(freshEnemies);
+    setCurrentLevel(nextLevel);
+    setPlayerHP(100);
+    setGameKey((prev) => prev + 1);
+    setIsTransitioning(false);
+    setRunning(true);
+  }
+};
+
 
     // --- ENTIDADES INICIALES (Ahora usan los estados) ---
     const getEntities = () => {
