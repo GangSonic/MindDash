@@ -8,7 +8,7 @@ import {
   Image,
 } from "react-native";
 import { GameEngine } from "react-native-game-engine";
-import {LevelGenerator} from "../services/LevelLogic";
+import { AdaptiveEnemyGenerator, MAP_BOUNDS } from '../services/Adaptiveenemygenerator';
 
 // === TRUCO PARA PANTALLA ===
 const { width, height } = Dimensions.get("window");
@@ -493,7 +493,7 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
       if (key.startsWith("enemy")) {
         const enemy = entities[key].body;
         
-        if (enemy.health <= 0) return;
+        if (enemy.isDead) return;
 
               // 1. Persecución (ya tienes la lógica, solo aplícala a 'enemy')
         const dx = player.position.x - enemy.position.x;
@@ -501,11 +501,39 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
         const distanceToPlayer = Math.hypot(dx, dy);
 
         if (distanceToPlayer < enemy.detectionRange) {
+
+        if (distanceToPlayer === 0) return;
         // MODO PERSECUCIÓN
         const vX = (dx / distanceToPlayer) * enemy.speed;
         const vY = (dy / distanceToPlayer) * enemy.speed;
+
+        const prevX = enemy.position.x;
+        const prevY = enemy.position.y;
+        
+        //mover al enemigo
         enemy.position.x += vX;
         enemy.position.y += vY;
+
+        //limites del mapa 
+        enemy.position.x = Math.max(
+          enemy.radius,
+          Math.min(SCREEN_WIDTH - enemy.radius * 2, enemy.position.x)
+        );
+
+        enemy.position.y = Math.max(
+          enemy.radius,
+          Math.min(SCREEN_HEIGHT - enemy.radius * 2, enemy.position.y)
+        );
+    
+        const stuck =
+        Math.abs(enemy.position.x - prevX) < 0.01 &&
+        Math.abs(enemy.position.y - prevY) < 0.01;
+
+        if (stuck && enemy.waypoints?.length > 0) {
+          enemy.nextPointIndex =
+            (enemy.nextPointIndex + 1) % enemy.waypoints.length;
+        }
+
       } else if (enemy.waypoints && enemy.waypoints.length > 0) {
         // MODO PATRULLA POR WAYPOINTS
         const target = enemy.waypoints[enemy.nextPointIndex];
@@ -513,15 +541,45 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
         const tDy = target.y - enemy.position.y;
         const distanceToTarget = Math.hypot(tDx, tDy);
 
-        if (distanceToTarget < 5) {
+        if (distanceToTarget === 0) {
+          enemy.nextPointIndex =
+            (enemy.nextPointIndex + 1) % enemy.waypoints.length;
+          return;
+        }
+
+        if (distanceToTarget < 25) {
           // Si llegó al punto, que pase al siguiente (vuelve a 0 al final)
           enemy.nextPointIndex = (enemy.nextPointIndex + 1) % enemy.waypoints.length;
         } else {
           // Moverse hacia el punto del circuito
-          enemy.position.x += (tDx / distanceToTarget) * (enemy.speed * 0.7); // Un poco más lento al patrullar
-          enemy.position.y += (tDy / distanceToTarget) * (enemy.speed * 0.7);
-        }
-      }
+          const pvX = (tDx / distanceToTarget) * (enemy.speed );
+          const pvY = (tDy / distanceToTarget) * (enemy.speed );
+
+          enemy.position.x += pvX;
+          enemy.position.y += pvY;
+
+          //clamp
+        enemy.position.x = Math.max(
+      MAP_BOUNDS.minX + enemy.radius + 20,
+      Math.min(MAP_BOUNDS.maxX - enemy.radius -20, enemy.position.x)
+    );
+
+    enemy.position.y = Math.max(
+      MAP_BOUNDS.minY + enemy.radius + 20,
+      Math.min(MAP_BOUNDS.maxY - enemy.radius - 20, enemy.position.y)
+    );
+
+       if (enemy.position.x < MAP_BOUNDS.minX + 30 || 
+        enemy.position.x > MAP_BOUNDS.maxX - 30 ||
+        enemy.position.y < MAP_BOUNDS.minY + 30 || 
+        enemy.position.y > MAP_BOUNDS.maxY - 30) {
+      // Si está muy cerca del borde, saltar al siguiente waypoint
+      enemy.nextPointIndex = (enemy.nextPointIndex + 1) % enemy.waypoints.length;
+      console.log(`⚠️ ${key} cerca del borde, saltando waypoint`);
+    }
+
+      }    
+    }
 
         // 2. Daño al jugador
         if (distanceToPlayer < 18) { 
@@ -539,12 +597,24 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
         enemy.position.x += Math.cos(angle) * knockbackForce;
         enemy.position.y += Math.sin(angle) * knockbackForce;
         
+        
+        const hitBoundary =
+        enemy.position.x <= MAP_BOUNDS.minX + enemy.radius ||
+        enemy.position.x >= MAP_BOUNDS.maxX - enemy.radius ||
+        enemy.position.y <= MAP_BOUNDS.minY + enemy.radius ||
+        enemy.position.y >= MAP_BOUNDS.maxY - enemy.radius;
+
+        if (hitBoundary) {
+          enemy.nextPointIndex =
+            (enemy.nextPointIndex + 1) % enemy.waypoints.length;
+        }
         //daño que recibe el enemigo 
         //console.log(`${key} recibió daño. Vida restante: ${enemy.health}`);
 
         if (enemy.health <= 0) {
-          enemy.position = { x: -1000, y: -1000 };
-          player.kills += 1;
+            enemy.health = 0;
+            enemy.isDead = true;
+            player.kills += 1;
         }
       }
 }
@@ -599,15 +669,19 @@ export default function GameScreen() {
   const [gameKey, setGameKey] = useState(0);
   const [finalStats, setFinalStats] = useState({ kills: 0, time: 0 }); // Para guardar el récord
   const [isPaused, setIsPaused] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false); // Estado para cuando pase de nivel 
+  const [isTransitioning, setIsTransitioning] = useState(false); // Estado para cuando pase de nivel
   const [currentBackground, setCurrentBackground] = useState(BACKGROUND_IMAGES[0]);
   const [accumulatedStats, setAccumulatedStats] = useState({ kills: 0, time: 0 }); //Estado para guardar estadísticas entre niveles
+ 
 
-// === FUNCIÓN SETUP NEXT LEVEL SIMPLIFICADA ===
-const setupNextLevel = (currentKills: number, currentTime: number, currentHealth: number) => {
+  //funciona para cargar nivel 
+  const setupNextLevel = async (currentKills: number, currentTime: number, currentHealth: number, currentDashes: number = 0) => {
     setRunning(false);
     
     const nextLevel = currentLevel + 1;
+    console.log("\n🎮 === PASANDO AL NIVEL", nextLevel, "===");
+    
+    // Cambiar fondo aleatorio
     const randomIndex = Math.floor(Math.random() * BACKGROUND_IMAGES.length);
     const selectedBg = BACKGROUND_IMAGES[randomIndex];
     
@@ -616,26 +690,60 @@ const setupNextLevel = (currentKills: number, currentTime: number, currentHealth
         kills: currentKills, 
         time: currentTime 
     });
-
+    
     console.log("Nivel completado. Vida restante:", currentHealth);
-
-    setTimeout(() => {
+    
+    setTimeout(async () => {
         setCurrentBackground(selectedBg);
         setMapMatrix(INITIAL_MAP);
         
-        // Reiniciamos solo a los enemigos
-        const freshEnemies = JSON.parse(JSON.stringify(INITIAL_ENEMIES));
-        setEnemiesData(freshEnemies);
+        try {
+            // Generar enemigos con IA
+            const enemies = await AdaptiveEnemyGenerator.generate(nextLevel, {
+                time: currentTime,
+                kills: currentKills,
+                dashes: currentDashes,
+            });
+            
+            console.log(`${enemies.length} enemigos generados con IA`);
+            
+            // Convertir enemigos al formato del juego
+            const gameEnemies: any = {};
+            enemies.forEach((enemy, index) => {
+                gameEnemies[`enemy_lvl${nextLevel}_${index}`] = {
+                    body: {
+                        position: enemy.position,
+                        waypoints: enemy.waypoints,
+                        nextPointIndex: enemy.nextPointIndex,
+                        speed: enemy.speed,
+                        health: enemy.health,
+                        radius: enemy.radius,
+                        detectionRange: enemy.detectionRange,
+                    },
+                    renderer: EnemyRenderer,
+                };
+            });
+            
+            setEnemiesData(gameEnemies);
+            
+        } catch (error) {
+            console.error("Error generando enemigos con IA:", error);
+            // Fallback: usar enemigos originales
+            const freshEnemies = JSON.parse(JSON.stringify(INITIAL_ENEMIES));
+            setEnemiesData(freshEnemies);
+        }
         
-        // CORRECCIÓN: Ahora establecemos la vida con la que terminó el nivel anterior
-        setPlayerHP(currentHealth); 
+        // IMPORTANTE: Mantener la vida del nivel anterior
+        setPlayerHP(currentHealth);
         
         setCurrentLevel(nextLevel);
         setGameKey(prev => prev + 1); 
         setIsTransitioning(false);
         setRunning(true);
+        
+        console.log("🎮 === NIVEL LISTO ===\n");
     }, 1000); 
-  };
+};
 
     // --- ENTIDADES INICIALES (Ahora usan los estados) ---
     const getEntities = () => {
