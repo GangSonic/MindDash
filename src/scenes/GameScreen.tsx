@@ -683,6 +683,16 @@ export default function GameScreen() {
   const [currentBackground, setCurrentBackground] = useState(BACKGROUND_IMAGES[0]);
   const [accumulatedStats, setAccumulatedStats] = useState({ kills: 0, time: 0 });
 
+  // FUNCIÓN DE SONIDO
+  const playClickSound = async () => {
+    try {
+      const { sound } = await Audio.Sound.createAsync(
+        require("../../assets/audio/click.mp3")
+      );
+      await sound.playAsync();
+    } catch (e) { console.log(e); }
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
@@ -1056,13 +1066,22 @@ export default function GameScreen() {
               <View style={styles.pauseContainer}>
                 <Text style={styles.pauseTitle}>PAUSA</Text>
 
-                <Pressable style={styles.menuBtn} onPress={handleResume}>
+                {/* BOTÓN CONTINUAR */}
+                <Pressable 
+                  style={styles.menuBtn} 
+                  onPress={() => {
+                    playClickSound(); 
+                    handleResume();
+                  }}
+                >
                   <Text style={styles.menuText}>Continuar</Text>
                 </Pressable>
 
+                  {/* BOTÓN REINICIAR */}
                 <Pressable
                   style={styles.menuBtn}
                   onPress={() => {
+                    playClickSound();
                     const freshEnemies = JSON.parse(JSON.stringify(INITIAL_ENEMIES));
                     setMapMatrix(INITIAL_MAP);
                     setEnemiesData(freshEnemies);
@@ -1079,9 +1098,11 @@ export default function GameScreen() {
                   <Text style={styles.menuText}>Reiniciar</Text>
                 </Pressable>
 
+                  {/* BOTÓN SALIR A MENÚ */}
                 <Pressable
                   style={[styles.menuBtn, styles.exitBtn]}
                   onPress={async () => {
+                    playClickSound();
                     // 1. Detener el juego
                     setRunning(false);
                     setIsPaused(false);

@@ -2,11 +2,26 @@
 import React, { useState } from "react";
 import { View, StyleSheet, Image, Text, Pressable, BackHandler, Alert, Platform} from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { Audio } from 'expo-av';
+
+async function playClickSound() {
+  try {
+    const { sound } = await Audio.Sound.createAsync(
+      require("../../assets/audio/click.mp3")
+    );
+    await sound.playAsync();
+  } catch (error) {
+    console.log("Error cargando sonido", error);
+  }
+}
 
 function PixelButton({ text, onPress }: { text: string; onPress: () => void }) {
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        playClickSound(); // <--- ¡Sonido primero!
+        onPress();        // <--- Luego la acción original
+      }}
       style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
     >
       <View style={styles.innerBorder}>
