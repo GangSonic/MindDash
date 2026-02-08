@@ -707,6 +707,12 @@ useEffect(() => {
           volume: 0.4 
         }
       );
+
+      if (isMounted) {
+        musicRef.current = sound;
+        await sound.playAsync();
+        //console.log("Música iniciada correctamente"); 
+      }
     } catch (e) {
       console.error("Error al reproducir música:", e);
     }
