@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { GameEngine } from "react-native-game-engine";
 import { AdaptiveEnemyGenerator, MAP_BOUNDS } from '../services/Adaptiveenemygenerator';
-
+import LoadingScreen from "../components/LoadingScreen";
 // === TRUCO PARA PANTALLA ===
 const { width, height } = Dimensions.get("window");
 const SCREEN_WIDTH = Math.max(width, height);
@@ -652,6 +652,7 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
 
 // === PANTALLA PRINCIPAL ===
 export default function GameScreen() {
+  const [isLoading, setIsLoading] = useState(true);
 
   //estados dinamicos 
   const [currentLevel, setCurrentLevel] = useState(1);
@@ -672,7 +673,20 @@ export default function GameScreen() {
   const [isTransitioning, setIsTransitioning] = useState(false); // Estado para cuando pase de nivel
   const [currentBackground, setCurrentBackground] = useState(BACKGROUND_IMAGES[0]);
   const [accumulatedStats, setAccumulatedStats] = useState({ kills: 0, time: 0 }); //Estado para guardar estadísticas entre niveles
- 
+
+  // Efecto para manejar la carga inicial
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 2500); // 2.5 segundos de pantalla de carga
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // SI ESTÁ CARGANDO, MOSTRAR LOADING SCREEN
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
 
   //funciona para cargar nivel 
   const setupNextLevel = async (currentKills: number, currentTimeInSeconds: number, currentHealth: number, currentDashes: number = 0) => {
