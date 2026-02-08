@@ -19,32 +19,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
-*/ 
+*/
 
 // App.tsx
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import GameScreen from './src/scenes/GameScreen'; 
+import React from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
-const Tab = createBottomTabNavigator();
+import MenuScreen from "./src/scenes/MenuScreen";
+import GameScreen from "./src/scenes/GameScreen";
+
+const Stack = createNativeStackNavigator();
 
 export default function App() {
   return (
     <NavigationContainer>
-      <Tab.Navigator
-        screenOptions={{
-          // Esto elimina el título "Juego" de arriba
-          headerShown: false,
-          // Esto elimina la barra de botones de abajo
-          tabBarStyle: { display: 'none' } 
-        }}
-        >
-        <Tab.Screen 
-          name="Juego" 
-          component={GameScreen} 
-        />
-      </Tab.Navigator>
+      <Stack.Navigator
+        initialRouteName="Menu"
+        screenOptions={{ headerShown: false }}
+      >
+        <Stack.Screen name="Menu" component={MenuScreen} />
+        <Stack.Screen name="Game" component={GameScreen} />
+      </Stack.Navigator>
     </NavigationContainer>
   );
 }
