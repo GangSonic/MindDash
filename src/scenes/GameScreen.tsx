@@ -675,7 +675,7 @@ export default function GameScreen() {
  
 
   //funciona para cargar nivel 
-  const setupNextLevel = async (currentKills: number, currentTime: number, currentHealth: number, currentDashes: number = 0) => {
+  const setupNextLevel = async (currentKills: number, currentTimeInSeconds: number, currentHealth: number, currentDashes: number = 0) => {
     setRunning(false);
     
     const nextLevel = currentLevel + 1;
@@ -688,7 +688,7 @@ export default function GameScreen() {
     // Guardamos progreso de estadísticas
     setAccumulatedStats({ 
         kills: currentKills, 
-        time: currentTime 
+        time: currentTimeInSeconds 
     });
     
     console.log("Nivel completado. Vida restante:", currentHealth);
@@ -700,7 +700,7 @@ export default function GameScreen() {
         try {
             // Generar enemigos con IA
             const enemies = await AdaptiveEnemyGenerator.generate(nextLevel, {
-                time: currentTime,
+                time: currentTimeInSeconds,
                 kills: currentKills,
                 dashes: currentDashes,
             });
@@ -827,8 +827,9 @@ export default function GameScreen() {
        // Activamos la bandera VISUAL primero
         setIsTransitioning(true); 
        // Llamamos a la lógica (que ahora tiene el setTimeout)
-        setupNextLevel(player.kills, player.survivalTime, player.health);
-    }
+       const timeInSeconds = Math.floor(player.survivalTime / 1000);
+      setupNextLevel(player.kills, timeInSeconds, player.health, player.dash.dashCount); 
+      }
     
     return entities;
   };
