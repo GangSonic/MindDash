@@ -1,6 +1,6 @@
 // src/scenes/MenuScreen.tsx
 import React, { useState } from "react";
-import { View, StyleSheet, Image, Text, Pressable} from "react-native";
+import { View, StyleSheet, Image, Text, Pressable, BackHandler, Alert, Platform} from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
 function PixelButton({ text, onPress }: { text: string; onPress: () => void }) {
@@ -19,7 +19,30 @@ function PixelButton({ text, onPress }: { text: string; onPress: () => void }) {
 export default function MenuScreen() {
   const navigation = useNavigation<any>();
   const [showCredits, setShowCredits] = useState(false); 
-
+  // === FUNCIÓN PARA SALIR ===
+  const handleExit = () => {
+    Alert.alert(
+      "Salir del Juego",
+      "¿Seguro que quieres salir?",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel"
+        },
+        { 
+          text: "Sí, salir", 
+          onPress: () => {
+            if (Platform.OS === 'android') {
+              BackHandler.exitApp(); 
+            } else {
+              // En iOS no se permite cerrar la app programáticamente
+              Alert.alert("Aviso", "En iPhone debes usar el botón de inicio para salir.");
+            }
+          } 
+        }
+      ]
+    );
+  };
   return (
     <View style={styles.container}>
       {/* 1. FONDO */}
@@ -34,7 +57,7 @@ export default function MenuScreen() {
         <PixelButton text="PLAY" onPress={() => navigation.navigate("Game")} />
         <PixelButton text="OPTIONS" onPress={() => {}} />
         <PixelButton text="CREDITS" onPress={() => setShowCredits(true)} />       
-        <PixelButton text="EXIT" onPress={() => {}} />
+        <PixelButton text="EXIT" onPress={handleExit} />
       </View>
 
       {/* 3. Mostrar creditos */}
