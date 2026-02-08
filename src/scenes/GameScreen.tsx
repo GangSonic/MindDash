@@ -11,6 +11,7 @@ import { GameEngine } from "react-native-game-engine";
 import { AdaptiveEnemyGenerator, MAP_BOUNDS } from '../services/Adaptiveenemygenerator';
 import LoadingScreen from "../components/LoadingScreen";
 import { Audio } from 'expo-av';
+import { useNavigation } from "@react-navigation/native";
 
 // === TRUCO PARA PANTALLA ===
 const { width, height } = Dimensions.get("window");
@@ -660,6 +661,7 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
 
 // === PANTALLA PRINCIPAL ===
 export default function GameScreen() {
+  const navigation = useNavigation<any>();
   const [isLoading, setIsLoading] = useState(true);
   const musicRef = useRef<Audio.Sound | null>(null);
 
@@ -1077,7 +1079,24 @@ export default function GameScreen() {
                   <Text style={styles.menuText}>Reiniciar</Text>
                 </Pressable>
 
-                <Pressable style={[styles.menuBtn, styles.exitBtn]}>
+                <Pressable
+                  style={[styles.menuBtn, styles.exitBtn]}
+                  onPress={async () => {
+                    // 1. Detener el juego
+                    setRunning(false);
+                    setIsPaused(false);
+                    
+                    // 2. Detener música si está sonando
+                    if (musicRef.current) {
+                        try {
+                            await musicRef.current.stopAsync();
+                        } catch (e) { console.log(e) }
+                    }
+
+                    // 3. Navegar al Menú (Asegúrate que tu ruta se llame 'Menu' en App.tsx)
+                    navigation.navigate("Menu"); 
+                  }}
+                >
                   <Text style={styles.menuText}>Salir a Menú Principal</Text>
                 </Pressable>
               </View>
