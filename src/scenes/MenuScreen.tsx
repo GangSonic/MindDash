@@ -1,6 +1,6 @@
 // src/scenes/MenuScreen.tsx
-import React from "react";
-import { View, StyleSheet, Image, Text, Pressable } from "react-native";
+import React, { useState } from "react";
+import { View, StyleSheet, Image, Text, Pressable} from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
 function PixelButton({ text, onPress }: { text: string; onPress: () => void }) {
@@ -18,23 +18,49 @@ function PixelButton({ text, onPress }: { text: string; onPress: () => void }) {
 
 export default function MenuScreen() {
   const navigation = useNavigation<any>();
+  const [showCredits, setShowCredits] = useState(false); 
 
   return (
     <View style={styles.container}>
-      {/* FONDO */}
+      {/* 1. FONDO */}
       <Image
         source={require("../../assets/menu.png")}
         style={styles.background}
         resizeMode="stretch"
       />
 
-      {/* MENÚ */}
+      {/* 2. MENÚ PRINCIPAL */}
       <View style={styles.menuContainer}>
         <PixelButton text="PLAY" onPress={() => navigation.navigate("Game")} />
         <PixelButton text="OPTIONS" onPress={() => {}} />
-        <PixelButton text="CREDITS" onPress={() => {}} />
+        <PixelButton text="CREDITS" onPress={() => setShowCredits(true)} />       
         <PixelButton text="EXIT" onPress={() => {}} />
       </View>
+
+      {/* 3. Mostrar creditos */}
+      {showCredits && (
+        <View style={styles.customOverlay}>
+          {/* Fondo oscuro transparente */}
+          <View style={styles.darkBackdrop} />
+
+          {/* Contenedor del contenido */}
+          <View style={styles.popupContent}>
+            
+            <Image
+              source={require("../../assets/creditos.png")} 
+              style={styles.creditsImage}
+              resizeMode="contain"
+            />
+            
+            {/* Botón de cerrar */}
+            <PixelButton 
+              text="CERRAR" 
+              onPress={() => setShowCredits(false)} 
+            />
+          </View>
+        </View>
+      )}
+
     </View>
   );
 }
@@ -92,5 +118,37 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
     fontWeight: "bold",
     textTransform: "uppercase",
+  },
+
+
+  customOverlay: {
+    position: "absolute", 
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 100, 
+  },
+  darkBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(0, 0, 0, 0.85)",
+  },
+  popupContent: {
+    width: "85%",
+    height: "70%",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 101, 
+  },
+  creditsImage: {
+    width: "100%",
+    height: "80%",
+    marginBottom: 20,
   },
 });
