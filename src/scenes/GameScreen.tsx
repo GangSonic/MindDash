@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { GameEngine } from "react-native-game-engine";
 import { LevelGenerator } from "../services/LevelLogic";
+import { useNavigation } from "@react-navigation/native";
 
 // === TRUCO PARA PANTALLA ===
 const { width, height } = Dimensions.get("window");
@@ -737,6 +738,8 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
 
 // === PANTALLA PRINCIPAL ===
 export default function GameScreen() {
+  const navigation = useNavigation<any>();
+
   //estados dinamicos
   const [currentLevel, setCurrentLevel] = useState(1);
   const [mapMatrix, setMapMatrix] = useState(INITIAL_MAP);
@@ -1121,48 +1124,174 @@ export default function GameScreen() {
         </View>
         {/* 1. AQUÍ CERRAMOS controlsArea (antes estaba dentro) */}
       </View>
+
       {/* BOTÓN DE PAUSA (Esquina Superior Izquierda) */}
       {!isPaused && !gameOver && (
-        <Pressable style={styles.pauseButton} onPress={handlePause}>
-          <Text style={styles.pauseIcon}>||</Text>
-        </Pressable>
+        <View style={styles.pauseIconButtonWrapper}>
+          {/* Imagen decorativa */}
+          <Image
+            source={require("../../assets/ui/pause_icon.png")}
+            style={styles.pauseBackgroundImage}
+            resizeMode="contain"
+          />
+
+          {/* Botón con estados visuales */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.pauseButtonOverlay,
+              pressed && styles.pauseButtonPressed,
+            ]}
+            onPress={handlePause}
+          >
+            {({ pressed }) => (
+              <>
+                <View
+                  style={[
+                    styles.pressIndicator,
+                    pressed && styles.pressIndicatorActive,
+                  ]}
+                />
+                {/* Brillo al presionar */}
+                {pressed && <View style={styles.pressShine} />}
+              </>
+            )}
+          </Pressable>
+        </View>
       )}
 
       {/* MENÚ DE PAUSA */}
       {isPaused && (
         <View style={styles.pauseContainer}>
-          <Text style={styles.pauseTitle}>PAUSA</Text>
+          {/* Imagen de fondo del menú de pausa */}
+          <Image
+            source={require("../../assets/ui/menu_paused2.png")}
+            style={styles.pauseMenuBackground}
+            resizeMode="contain"
+          />
 
-          {/* Opción 1: Continuar */}
-          <Pressable style={styles.menuBtn} onPress={handleResume}>
-            <Text style={styles.menuText}>Continuar</Text>
-          </Pressable>
+          {/* Contenedor de botones */}
+          <View style={styles.pauseMenuContent}>
+            {/* Título (opcional, puedes quitarlo si tu imagen ya tiene título) */}
+            <Text style={styles.pauseTitle}></Text>
 
-          {/* Opción 2: Reiniciar (Usamos la lógica que ya tenías) */}
-          <Pressable
-            style={styles.menuBtn}
-            onPress={() => {
-              const freshEnemies = JSON.parse(JSON.stringify(INITIAL_ENEMIES));
-              setMapMatrix(INITIAL_MAP);
-              setEnemiesData(freshEnemies);
-              setGameKey((prev) => prev + 1); // Reinicio mágico
-              setIsPaused(false);
-              setPlayerHP(100);
-              setRunning(true);
-              velocityRef.current = { x: 0, y: 0 };
-              dashSignalRef.current = false;
-              attackSignalRef.current = false;
-            }}
-          >
-            <Text style={styles.menuText}>Reiniciar</Text>
-          </Pressable>
+            {/* Contenedor para botones principales (izquierda) y música (derecha) */}
+            <View style={styles.pauseButtonsContainer}>
+              {/* COLUMNA IZQUIERDA - Botones principales */}
+              <View style={styles.pauseMainButtonsColumn}>
+                {/* BOTÓN CONTINUAR */}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.pauseMenuButtonWrapper,
+                    pressed && styles.pauseButtonPressedMenu,
+                  ]}
+                  onPress={handleResume}
+                >
+                  {({ pressed }) => (
+                    <>
+                      <Image
+                        source={require("../../assets/ui/button_continue.png")}
+                        style={styles.pauseButtonImage}
+                        resizeMode="stretch"
+                      />
+                      <View style={styles.pauseButtonOverlayMenu}>
+                        <Text style={styles.pauseButtonText}></Text>
+                      </View>
+                      {pressed && <View style={styles.pauseButtonShine} />}
+                    </>
+                  )}
+                </Pressable>
 
-          {/* Opción 3: Salir (Solo visual por ahora) */}
-          <Pressable style={[styles.menuBtn, styles.exitBtn]}>
-            <Text style={styles.menuText}>Salir a Menú Principal</Text>
-          </Pressable>
+                {/* BOTÓN REINICIAR */}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.pauseMenuButtonWrapper,
+                    pressed && styles.pauseButtonPressedMenu,
+                  ]}
+                  onPress={() => {
+                    const freshEnemies = JSON.parse(
+                      JSON.stringify(INITIAL_ENEMIES),
+                    );
+                    setMapMatrix(INITIAL_MAP);
+                    setEnemiesData(freshEnemies);
+                    setGameKey((prev) => prev + 1);
+                    setIsPaused(false);
+                    setPlayerHP(100);
+                    setRunning(true);
+                    velocityRef.current = { x: 0, y: 0 };
+                    dashSignalRef.current = false;
+                    attackSignalRef.current = false;
+                  }}
+                >
+                  {({ pressed }) => (
+                    <>
+                      <Image
+                        source={require("../../assets/ui/button_restart.png")}
+                        style={styles.pauseButtonImage}
+                        resizeMode="stretch"
+                      />
+                      <View style={styles.pauseButtonOverlayMenu}>
+                        <Text style={styles.pauseButtonText}></Text>
+                      </View>
+                      {pressed && <View style={styles.pauseButtonShine} />}
+                    </>
+                  )}
+                </Pressable>
+
+                {/* BOTÓN SALIR/MENU */}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.pauseMenuButtonWrapper,
+                    pressed && styles.pauseButtonPressedMenu,
+                  ]}
+                  onPress={() => navigation.navigate("Menu")}
+                >
+                  {({ pressed }) => (
+                    <>
+                      <Image
+                        source={require("../../assets/ui/button_menu.png")}
+                        style={styles.pauseButtonImage}
+                        resizeMode="stretch"
+                      />
+                      <View style={styles.pauseButtonOverlayMenu}>
+                        <Text style={styles.pauseButtonText}></Text>
+                      </View>
+                      {pressed && <View style={styles.pauseButtonShine} />}
+                    </>
+                  )}
+                </Pressable>
+              </View>
+
+              {/* COLUMNA DERECHA - Botón de música */}
+              <View style={styles.pauseMusicButtonColumn}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.musicButtonWrapper,
+                    pressed && styles.musicButtonPressed,
+                  ]}
+                  onPress={() => {
+                    console.log("Toggle música");
+                  }}
+                >
+                  {({ pressed }) => (
+                    <>
+                      <Image
+                        source={require("../../assets/ui/button_music.png")}
+                        style={styles.musicButtonImage}
+                        resizeMode="stretch"
+                      />
+                      <View style={styles.musicButtonOverlay}>
+                        <Text style={styles.pauseButtonText}></Text>
+                      </View>
+                      {pressed && <View style={styles.pauseButtonShine} />}
+                    </>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          </View>
         </View>
       )}
+
       {/* 2. AQUÍ PEGAMOS EL GAME OVER (Afuera de todo, al final) */}
       {gameOver && (
         <View style={styles.gameOverContainer}>
@@ -1369,64 +1498,49 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   // === ESTILOS DE PAUSA ===
-  pauseButton: {
-    position: "absolute",
-    top: 20,
-    left: 20,
-    width: 40,
-    height: 40,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.5)",
-    zIndex: 50,
-  },
-  pauseIcon: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
+
   pauseContainer: {
     position: "absolute",
     top: 0,
     left: 0,
     width: "100%",
     height: "100%",
-    backgroundColor: "rgba(0,0,0,0.8)", // Fondo oscuro semitransparente
+    backgroundColor: "rgba(0,0,0,0.85)", // Fondo oscuro semitransparente
     justifyContent: "center",
     alignItems: "center",
     zIndex: 100,
   },
+  pauseMenuBackground: {
+    position: "absolute",
+    width: "90%",
+    maxWidth: 500,
+    height: "70%",
+    maxHeight: 600,
+    // Sombra para que resalte
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.8,
+    shadowRadius: 20,
+    elevation: 15,
+  },
+  pauseMenuContent: {
+    width: "80%",
+    maxWidth: 400,
+    alignItems: "center",
+    gap: 3,
+    zIndex: 101, // Por encima del fondo
+  },
   pauseTitle: {
     color: "white",
-    fontSize: 35,
+    fontSize: 40,
     fontWeight: "bold",
-    marginBottom: 30,
-    letterSpacing: 2,
+    marginBottom: 20,
+    letterSpacing: 3,
+    textShadowColor: "#000",
+    textShadowOffset: { width: 3, height: 3 },
+    textShadowRadius: 5,
   },
-  menuBtn: {
-    backgroundColor: "#5d6166",
-    paddingVertical: 12,
-    paddingHorizontal: 50,
-    borderRadius: 8,
-    marginBottom: 15,
-    width: 250,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#89a48f",
-  },
-  exitBtn: {
-    backgroundColor: "#5d6166", // Rojo para salir
-    borderColor: "#89a48f",
-    marginTop: 10,
-  },
-  menuText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
+
   loadingOverlay: {
     position: "absolute",
     top: 0,
@@ -1463,5 +1577,174 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "bold",
     letterSpacing: 1,
+  },
+  // === ESTILOS DEL BOTÓN DE PAUSA CON IMAGEN ===
+  pauseBackgroundImage: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  pauseButtonOverlay: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 10,
+  },
+  pauseButtonPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.92 }, { translateY: 2 }],
+    shadowOffset: { width: 0, height: 3 },
+  },
+  pressIndicator: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 10,
+    borderWidth: 0,
+    borderColor: "transparent",
+  },
+  // 🌟 NUEVO: Estado activo del indicador
+  pressIndicatorActive: {
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+  },
+  // 🌟 NUEVO: Efecto de brillo
+  pressShine: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 10,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderTopColor: "rgba(255, 255, 255, 0.4)",
+    borderLeftColor: "rgba(255, 255, 255, 0.4)",
+  },
+
+  pauseIconButtonWrapper: {
+    position: "relative",
+    top: 15,
+    left: 40,
+    width: 80,
+    height: 80,
+    zIndex: 50,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+
+  pauseMenuButtonWrapper: {
+    top: -15,
+    width: 180,
+    height: 60,
+    position: "relative",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  pauseButtonImage: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+  },
+  pauseButtonOverlayMenu: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "transparent",
+  },
+  pauseButtonPressedMenu: {
+    opacity: 0.9,
+    transform: [{ scale: 0.96 }, { translateY: 2 }],
+    shadowOffset: { width: 0, height: 2 },
+  },
+  pauseButtonText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
+    letterSpacing: 2,
+    textShadowColor: "#000",
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 3,
+  },
+  pauseButtonShine: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+    borderTopColor: "rgba(255, 255, 255, 0.3)",
+    borderLeftColor: "rgba(255, 255, 255, 0.3)",
+  },
+
+  pauseButtonsContainer: {
+    flexDirection: "row",
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 40,
+    paddingHorizontal: 10,
+  },
+
+  // Columna de botones principales (Continue, Restart, Menu)
+  pauseMainButtonsColumn: {
+    flex: 0,
+    gap: 3,
+    alignItems: "center",
+  },
+
+  // Columna del botón de música
+  pauseMusicButtonColumn: {
+    flex: 0,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // Estilos específicos para el botón de música
+  musicButtonWrapper: {
+    width: 50,
+    height: 50,
+    position: "relative",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+
+  musicButtonImage: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+  },
+
+  musicButtonOverlay: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "transparent",
+  },
+
+  musicButtonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.96 }, { translateY: 2 }], // ← IGUAL QUE LOS OTROS
+    shadowOffset: { width: 0, height: 2 },
   },
 });
