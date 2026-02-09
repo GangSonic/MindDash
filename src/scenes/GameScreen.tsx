@@ -21,7 +21,7 @@ const SCREEN_HEIGHT = Math.min(width, height);
 // === CONFIGURACIÓN ===
 const CONFIG = {
   PLAYER_SIZE: 12,
-  PLAYER_SPEED: 2,
+  PLAYER_SPEED: 1,
   PLAYER_COLOR: "#ff4444",
 
   // --- CONFIGURACIÓN DEL DASH ---
