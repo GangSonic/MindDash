@@ -94,7 +94,7 @@ const EnemyRenderer = ({ body }: { body: any }) => {
   if (body.health <= 0 || body.isDead) return null;
 
   // Escala para que se vea mejor
-  const scale = 1.0;
+  const scale = 0.6;
   const frameWidth = ENEMY_SPRITE_CONFIG.frameWidth * scale;
   const frameHeight = ENEMY_SPRITE_CONFIG.frameHeight * scale;
 
@@ -1267,7 +1267,7 @@ const styles = StyleSheet.create({
   },
   pauseTitle: { color: "white", fontSize: 35, fontWeight: "bold", marginBottom: 30, letterSpacing: 2 },
   menuBtn: {
-    backgroundColor: "#5d6166",
+    backgroundColor: "#cf616194",
     paddingVertical: 12,
     paddingHorizontal: 50,
     borderRadius: 8,
@@ -1275,9 +1275,9 @@ const styles = StyleSheet.create({
     width: 250,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#89a48f",
+    borderColor: "#3d0c64",
   },
-  exitBtn: { backgroundColor: "#5d6166", borderColor: "#89a48f", marginTop: 10 },
+  exitBtn: { backgroundColor: "#cf616194", borderColor: "#3d0c64", marginTop: 10 },
   menuText: { color: "white", fontSize: 18, fontWeight: "bold" },
   loadingOverlay: {
     position: "absolute",
