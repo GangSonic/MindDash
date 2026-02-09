@@ -93,66 +93,51 @@ const ENEMY_SPRITE_CONFIG = {
 const EnemyRenderer = ({ body }: { body: any }) => {
   if (body.health <= 0 || body.isDead) return null;
 
-  // Escala para que se vea mejor
-  const scale = 0.6;
+  const scale = 0.6; 
   const frameWidth = ENEMY_SPRITE_CONFIG.frameWidth * scale;
   const frameHeight = ENEMY_SPRITE_CONFIG.frameHeight * scale;
 
-  // Frame actual
+  // --- CONFIGURACIÓN DE LIMPIEZA ---
+  const CROP_AMOUNT = 3; // Aumenta este número si sigues viendo manchas a los lados
+  // ---------------------------------
+
   const col = (body.animation?.frameIndex || 0) % ENEMY_SPRITE_CONFIG.columns;
   const row = body.animation?.row ?? 0;
-
-  const MAX_HEALTH = 3;
-  const healthPercentage = (body.health / MAX_HEALTH) * 100;
+  const shouldFlip = body.animation?.direction === "left";
+  const healthPercentage = (body.health / 3) * 100;
 
   return (
-    <View
-      style={{
+    <View style={{
         position: "absolute",
-        // CENTRADO CORRECTO
-        left: body.position.x - frameWidth / 2,
+        left: body.position.x - (frameWidth - CROP_AMOUNT * 2) / 2,
         top: body.position.y - frameHeight / 2 - 8,
-        width: frameWidth,
+        width: frameWidth - CROP_AMOUNT * 2, // Contenedor más angosto
         height: frameHeight + 8,
         alignItems: "center",
       }}
     >
       {/* BARRA DE VIDA */}
-      <View
-        style={{
-          width: frameWidth * 0.8,
-          height: 4,
-          backgroundColor: "#333",
-          borderRadius: 2,
-          overflow: "hidden",
-          marginBottom: 4,
-        }}
-      >
-        <View
-          style={{
-            width: `${healthPercentage}%`,
-            height: "100%",
-            backgroundColor: body.health > 1 ? "#00ff00" : "#ff0000",
-          }}
-        />
+      <View style={{ width: (frameWidth - CROP_AMOUNT * 2) * 0.8, height: 4, backgroundColor: "#333", borderRadius: 2, overflow: "hidden", marginBottom: 4 }}>
+        <View style={{ width: `${healthPercentage}%`, height: "100%", backgroundColor: body.health > 1 ? "#00ff00" : "#ff0000" }} />
       </View>
 
-      {/* SPRITE DEL ENEMIGO */}
-      <View
-        style={{
-          width: frameWidth,
+      {/* CONTENEDOR DEL SPRITE CON RECORTE LATERAL */}
+      <View style={{
+          width: frameWidth - CROP_AMOUNT * 2, 
           height: frameHeight,
           overflow: "hidden",
-        }}
-      >
+          backgroundColor: 'transparent'
+        }}>
         <Image
           source={ENEMY_SPRITE}
           style={{
             width: ENEMY_SPRITE_CONFIG.columns * frameWidth,
             height: ENEMY_SPRITE_CONFIG.rows * frameHeight,
             position: "absolute",
-            left: -col * frameWidth,
-            top: -row * frameHeight,
+            // Ajustamos el 'left' para que el dibujo se mueva al centro y oculte los bordes
+            left: -(col * frameWidth) - CROP_AMOUNT, 
+            top: -(row * frameHeight),
+            transform: [{ scaleX: shouldFlip ? -1 : 1 }],
           }}
           resizeMode="stretch"
         />
@@ -522,6 +507,8 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
       const dy = player.position.y - enemy.position.y;
       const distanceToPlayer = Math.hypot(dx, dy);
 
+      const oldX = enemy.position.x;
+
       // Determinar fila según estado
       if (distanceToPlayer < enemy.detectionRange) {
         enemy.animation.row = 1; // persecución
@@ -550,6 +537,13 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
           enemy.radius,
           Math.min(SCREEN_HEIGHT - enemy.radius * 2, enemy.position.y)
         );
+
+        // 2. Después de que la posición X se haya actualizado, calculamos la dirección
+          if (enemy.position.x > oldX + 0.1) {
+              enemy.animation.direction = "right";
+          } else if (enemy.position.x < oldX - 0.1) {
+              enemy.animation.direction = "left";
+          }
 
         const stuck =
           Math.abs(enemy.position.x - prevX) < 0.01 &&
