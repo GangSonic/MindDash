@@ -1134,10 +1134,11 @@ export default function GameScreen() {
             <GameEngine
               key={gameKey}
               ref={gameEngineRef}
-              style={styles.gameContainer}
+              style={[styles.gameContainer, { pointerEvents: "none" }]}
               entities={getEntities()}
               systems={[InputSystem, PhysicsSystem]}
               running={running}
+              
             />
 
             <View style={styles.hudContainer}>
@@ -1480,10 +1481,10 @@ export default function GameScreen() {
               <View style={styles.gameOverContainer}>
                 <Text style={styles.gameOverText}>¡GAME OVER!</Text>
                 <Text style={styles.statsText}>
-                  Enemigos eliminados: {finalStats.kills}
+                  Enemies eliminated: {finalStats.kills}
                 </Text>
                 <Text style={styles.statsText}>
-                  Tiempo sobrevivido: {finalStats.time}s
+                  Time survived: {finalStats.time}s
                 </Text>
 
                 <Pressable
@@ -1511,9 +1512,9 @@ export default function GameScreen() {
 
             {isTransitioning && (
               <View style={styles.loadingOverlay}>
-                <Text style={styles.loadingText}>INGRESANDO AL TÚNEL...</Text>
+                <Text style={styles.loadingText}>Next Level...</Text>
                 <Text style={styles.subLoadingText}>
-                  Generando siguiente zona con IA
+                  Generating next zone with AI
                 </Text>
                 <Pressable
                   style={styles.cancelLoadingBtn}
@@ -1521,7 +1522,7 @@ export default function GameScreen() {
                     console.log("Carga cancelada, regresando al menú...");
                   }}
                 >
-                  <Text style={styles.cancelLoadingText}> Cancelar </Text>
+                  <Text style={styles.cancelLoadingText}> Exit </Text>
                 </Pressable>
               </View>
             )}
