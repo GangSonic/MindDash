@@ -122,7 +122,7 @@ export default function LoadingScreen() {
 
         {/* Tip */}
         <Text style={styles.tipText}>
-          🎮 Tip: Usa el dash para esquivar enemigos
+          🎮 Tip: Use the dash to dodge enemies.
         </Text>
       </Animated.View>
     </View>

@@ -112,7 +112,7 @@ const EnemyRenderer = ({ body }: { body: any }) => {
         width: frameWidth,
         height: frameHeight + 8,
         alignItems: "center",
-        backgroundColor: "transparent",
+        backgroundColor: "transparent", // <- FONDO TRANSPARENTE
       }}
     >
       <View
@@ -139,7 +139,7 @@ const EnemyRenderer = ({ body }: { body: any }) => {
           width: frameWidth,
           height: frameHeight,
           overflow: "hidden",
-          backgroundColor: "transparent",
+          backgroundColor: "transparent", // <- FONDO TRANSPARENTE
         }}
       >
         <Image
@@ -150,7 +150,7 @@ const EnemyRenderer = ({ body }: { body: any }) => {
             position: "absolute",
             left: -col * frameWidth,
             top: -row * frameHeight,
-            backgroundColor: "transparent",
+            backgroundColor: "transparent", // <- FONDO TRANSPARENTE
           }}
           resizeMode="stretch"
         />
@@ -675,6 +675,7 @@ export default function GameScreen() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [currentBackground, setCurrentBackground] = useState(BACKGROUND_IMAGES[0]);
   const [accumulatedStats, setAccumulatedStats] = useState({ kills: 0, time: 0 });
+  const [isMusicMuted, setIsMusicMuted] = useState(false);
 
   // FUNCIÓN DE SONIDO
   const playClickSound = async () => {
@@ -969,7 +970,7 @@ export default function GameScreen() {
     setIsPaused(true);
     setRunning(false);
 
-    if (musicRef.current) {
+    if (musicRef.current && !isMusicMuted) {
       musicRef.current.pauseAsync();
     }
   };
@@ -978,8 +979,26 @@ export default function GameScreen() {
     setIsPaused(false);
     setRunning(true);
 
-    if (musicRef.current) {
+    if (musicRef.current && !isMusicMuted) {
       musicRef.current.playAsync();
+    }
+  };
+
+  const toggleMusic = async () => {
+    try {
+      if (musicRef.current) {
+        if (isMusicMuted) {
+          // Reanudar música
+          await musicRef.current.playAsync();
+          setIsMusicMuted(false);
+        } else {
+          // Pausar música
+          await musicRef.current.pauseAsync();
+          setIsMusicMuted(true);
+        }
+      }
+    } catch (e) {
+      console.log("Error al toggle música:", e);
     }
   };
 
@@ -1201,18 +1220,28 @@ export default function GameScreen() {
                           pressed && styles.musicButtonPressed,
                         ]}
                         onPress={() => {
-                          console.log("Toggle música");
+                          playClickSound();
+                          toggleMusic();
                         }}
                       >
                         {({ pressed }) => (
                           <>
                             <Image
                               source={require("../../assets/ui/button_music.png")}
-                              style={styles.musicButtonImage}
+                              style={[
+                                styles.musicButtonImage,
+                                isMusicMuted && { opacity: 0.5 }
+                              ]}
                               resizeMode="stretch"
                             />
                             <View style={styles.musicButtonOverlay}>
-                              <Text style={styles.pauseButtonText}></Text>
+                              {isMusicMuted && (
+                                <Image
+                                  source={require("../../assets/ui/no_music2.png")}
+                                  style={styles.mutedImage}
+                                  resizeMode="contain"
+                                />
+                              )}
                             </View>
                             {pressed && <View style={styles.pauseButtonShine} />}
                           </>
@@ -1536,6 +1565,12 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.96 }, { translateY: 2 }],
     shadowOffset: { width: 0, height: 2 },
   },
+  mutedImage: {
+  position: "absolute",
+  width: 40,
+  height: 40,
+  opacity: 0.9,
+},
   loadingOverlay: {
     position: "absolute",
     top: 0,
