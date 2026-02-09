@@ -8,9 +8,12 @@ import {
   Image,
 } from "react-native";
 import { GameEngine } from "react-native-game-engine";
-import { AdaptiveEnemyGenerator, MAP_BOUNDS } from '../services/Adaptiveenemygenerator';
+import {
+  AdaptiveEnemyGenerator,
+  MAP_BOUNDS,
+} from "../services/Adaptiveenemygenerator";
 import LoadingScreen from "../components/LoadingScreen";
-import { Audio } from 'expo-av';
+import { Audio } from "expo-av";
 import { useNavigation } from "@react-navigation/native";
 
 // === TRUCO PARA PANTALLA ===
@@ -55,27 +58,90 @@ const BACKGROUND_IMAGES = [
 
 // === MATRIZ DEL MAPA ===
 const INITIAL_MAP = [
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-  [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1],
-  [1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1],
-  [1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1],
-  [1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-  [1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1],
-  [1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1],
-  [1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1],
-  [1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-  [1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1],
-  [1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1],
-  [1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1],
-  [1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1],
-  [1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1],
-  [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-  [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  [
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1,
+  ],
+  [
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1,
+  ],
+  [
+    1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 1, 1,
+  ],
+  [
+    1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0,
+    1, 1, 1, 0, 0, 1, 1,
+  ],
+  [
+    1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+    0, 0, 1, 0, 0, 1, 1,
+  ],
+  [
+    1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 1, 1,
+  ],
+  [
+    1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+    0, 1, 1, 1, 1, 1, 1,
+  ],
+  [
+    1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0,
+    0, 1, 1, 1, 1, 1, 1,
+  ],
+  [
+    1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0,
+    0, 1, 0, 0, 0, 1, 1,
+  ],
+  [
+    1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 1, 1,
+  ],
+  [
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 1,
+  ],
+  [
+    1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
+    1, 1, 1, 0, 0, 1, 1,
+  ],
+  [
+    1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+    0, 0, 0, 0, 0, 1, 1,
+  ],
+  [
+    1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+    0, 0, 0, 0, 0, 1, 1,
+  ],
+  [
+    1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+    0, 1, 1, 1, 0, 1, 1,
+  ],
+  [
+    1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1,
+    0, 0, 0, 0, 0, 1, 1,
+  ],
+  [
+    1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 1, 1,
+  ],
+  [
+    1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 1, 1,
+  ],
+  [
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1,
+  ],
+  [
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1,
+  ],
+  [
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1,
+  ],
 ];
 
 // === CONFIGURACIÓN DEL SPRITE DEL ENEMIGO ===
@@ -108,7 +174,8 @@ const EnemyRenderer = ({ body }: { body: any }) => {
   const healthPercentage = (body.health / 3) * 100;
 
   return (
-    <View style={{
+    <View
+      style={{
         position: "absolute",
         // CENTRADO CORRECTO
         left: body.position.x - frameWidth / 2,
@@ -120,17 +187,34 @@ const EnemyRenderer = ({ body }: { body: any }) => {
       }}
     >
       {/* BARRA DE VIDA */}
-      <View style={{ width: (frameWidth - CROP_AMOUNT * 2) * 0.8, height: 4, backgroundColor: "#333", borderRadius: 2, overflow: "hidden", marginBottom: 4 }}>
-        <View style={{ width: `${healthPercentage}%`, height: "100%", backgroundColor: body.health > 1 ? "#00ff00" : "#ff0000" }} />
+      <View
+        style={{
+          width: (frameWidth - CROP_AMOUNT * 2) * 0.8,
+          height: 4,
+          backgroundColor: "#333",
+          borderRadius: 2,
+          overflow: "hidden",
+          marginBottom: 4,
+        }}
+      >
+        <View
+          style={{
+            width: `${healthPercentage}%`,
+            height: "100%",
+            backgroundColor: body.health > 1 ? "#00ff00" : "#ff0000",
+          }}
+        />
       </View>
 
       {/* CONTENEDOR DEL SPRITE CON RECORTE LATERAL */}
-      <View style={{
-          width: frameWidth - CROP_AMOUNT * 2, 
+      <View
+        style={{
+          width: frameWidth - CROP_AMOUNT * 2,
           height: frameHeight,
           overflow: "hidden",
-          backgroundColor: 'transparent'
-        }}>
+          backgroundColor: "transparent",
+        }}
+      >
         <Image
           source={ENEMY_SPRITE}
           style={{
@@ -138,7 +222,7 @@ const EnemyRenderer = ({ body }: { body: any }) => {
             height: ENEMY_SPRITE_CONFIG.rows * frameHeight,
             position: "absolute",
             // Ajustamos el 'left' para que el dibujo se mueva al centro y oculte los bordes
-            left: -(col * frameWidth) - CROP_AMOUNT, 
+            left: -(col * frameWidth) - CROP_AMOUNT,
             top: -(row * frameHeight),
             transform: [{ scaleX: shouldFlip ? -1 : 1 }],
           }}
@@ -265,7 +349,13 @@ interface GameEntities {
 // === RENDERER DEL MAPA ===
 const MapRenderer = ({ backgroundImage }: { backgroundImage: any }) => {
   return (
-    <View style={{ position: "absolute", width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
+    <View
+      style={{
+        position: "absolute",
+        width: SCREEN_WIDTH,
+        height: SCREEN_HEIGHT,
+      }}
+    >
       <Image
         source={backgroundImage}
         style={{
@@ -375,7 +465,7 @@ const HealthBar = ({ health }: { health: number }) => {
             !isFull && !isEmpty && { tintColor: "#ff8888" },
           ]}
         />
-      </View>
+      </View>,
     );
   }
 
@@ -421,7 +511,10 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
     if (player.dash.timeLeft <= 0) {
       player.dash.isDashing = false;
     } else {
-      const dirX = player.dash.facing.x === 0 && player.dash.facing.y === 0 ? 1 : player.dash.facing.x;
+      const dirX =
+        player.dash.facing.x === 0 && player.dash.facing.y === 0
+          ? 1
+          : player.dash.facing.x;
       const dirY = player.dash.facing.y;
 
       finalVelocity = {
@@ -501,7 +594,8 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
       enemy.animation.timer += time.delta;
       if (enemy.animation.timer >= ENEMY_SPRITE_CONFIG.animationSpeed) {
         enemy.animation.timer = 0;
-        enemy.animation.frameIndex = (enemy.animation.frameIndex + 1) % ENEMY_SPRITE_CONFIG.columns;
+        enemy.animation.frameIndex =
+          (enemy.animation.frameIndex + 1) % ENEMY_SPRITE_CONFIG.columns;
       }
 
       const dx = player.position.x - enemy.position.x;
@@ -530,27 +624,28 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
 
         enemy.position.x = Math.max(
           enemy.radius,
-          Math.min(SCREEN_WIDTH - enemy.radius * 2, enemy.position.x)
+          Math.min(SCREEN_WIDTH - enemy.radius * 2, enemy.position.x),
         );
 
         enemy.position.y = Math.max(
           enemy.radius,
-          Math.min(SCREEN_HEIGHT - enemy.radius * 2, enemy.position.y)
+          Math.min(SCREEN_HEIGHT - enemy.radius * 2, enemy.position.y),
         );
 
         // 2. Después de que la posición X se haya actualizado, calculamos la dirección
-          if (enemy.position.x > oldX + 0.1) {
-              enemy.animation.direction = "right";
-          } else if (enemy.position.x < oldX - 0.1) {
-              enemy.animation.direction = "left";
-          }
+        if (enemy.position.x > oldX + 0.1) {
+          enemy.animation.direction = "right";
+        } else if (enemy.position.x < oldX - 0.1) {
+          enemy.animation.direction = "left";
+        }
 
         const stuck =
           Math.abs(enemy.position.x - prevX) < 0.01 &&
           Math.abs(enemy.position.y - prevY) < 0.01;
 
         if (stuck && enemy.waypoints?.length > 0) {
-          enemy.nextPointIndex = (enemy.nextPointIndex + 1) % enemy.waypoints.length;
+          enemy.nextPointIndex =
+            (enemy.nextPointIndex + 1) % enemy.waypoints.length;
         }
       } else if (enemy.waypoints && enemy.waypoints.length > 0) {
         const target = enemy.waypoints[enemy.nextPointIndex];
@@ -559,12 +654,14 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
         const distanceToTarget = Math.hypot(tDx, tDy);
 
         if (distanceToTarget === 0) {
-          enemy.nextPointIndex = (enemy.nextPointIndex + 1) % enemy.waypoints.length;
+          enemy.nextPointIndex =
+            (enemy.nextPointIndex + 1) % enemy.waypoints.length;
           return;
         }
 
         if (distanceToTarget < 25) {
-          enemy.nextPointIndex = (enemy.nextPointIndex + 1) % enemy.waypoints.length;
+          enemy.nextPointIndex =
+            (enemy.nextPointIndex + 1) % enemy.waypoints.length;
         } else {
           const pvX = (tDx / distanceToTarget) * enemy.speed;
           const pvY = (tDy / distanceToTarget) * enemy.speed;
@@ -574,12 +671,12 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
 
           enemy.position.x = Math.max(
             MAP_BOUNDS.minX + enemy.radius + 20,
-            Math.min(MAP_BOUNDS.maxX - enemy.radius - 20, enemy.position.x)
+            Math.min(MAP_BOUNDS.maxX - enemy.radius - 20, enemy.position.x),
           );
 
           enemy.position.y = Math.max(
             MAP_BOUNDS.minY + enemy.radius + 20,
-            Math.min(MAP_BOUNDS.maxY - enemy.radius - 20, enemy.position.y)
+            Math.min(MAP_BOUNDS.maxY - enemy.radius - 20, enemy.position.y),
           );
 
           if (
@@ -588,7 +685,8 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
             enemy.position.y < MAP_BOUNDS.minY + 30 ||
             enemy.position.y > MAP_BOUNDS.maxY - 30
           ) {
-            enemy.nextPointIndex = (enemy.nextPointIndex + 1) % enemy.waypoints.length;
+            enemy.nextPointIndex =
+              (enemy.nextPointIndex + 1) % enemy.waypoints.length;
           }
         }
       }
@@ -613,7 +711,8 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
           enemy.position.y >= MAP_BOUNDS.maxY - enemy.radius;
 
         if (hitBoundary) {
-          enemy.nextPointIndex = (enemy.nextPointIndex + 1) % enemy.waypoints.length;
+          enemy.nextPointIndex =
+            (enemy.nextPointIndex + 1) % enemy.waypoints.length;
         }
 
         if (enemy.health <= 0) {
@@ -639,7 +738,7 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
   if (portal) {
     const distToPortal = Math.hypot(
       player.position.x - portal.position.x,
-      player.position.y - portal.position.y
+      player.position.y - portal.position.y,
     );
 
     if (distToPortal < 35 && !player.isWinner) {
@@ -672,18 +771,25 @@ export default function GameScreen() {
   const [finalStats, setFinalStats] = useState({ kills: 0, time: 0 });
   const [isPaused, setIsPaused] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [currentBackground, setCurrentBackground] = useState(BACKGROUND_IMAGES[0]);
-  const [accumulatedStats, setAccumulatedStats] = useState({ kills: 0, time: 0 });
+  const [currentBackground, setCurrentBackground] = useState(
+    BACKGROUND_IMAGES[0],
+  );
+  const [accumulatedStats, setAccumulatedStats] = useState({
+    kills: 0,
+    time: 0,
+  });
   const [isMusicMuted, setIsMusicMuted] = useState(false);
 
   // FUNCIÓN DE SONIDO
   const playClickSound = async () => {
     try {
       const { sound } = await Audio.Sound.createAsync(
-        require("../../assets/audio/click.mp3")
+        require("../../assets/audio/click.mp3"),
       );
       await sound.playAsync();
-    } catch (e) { console.log(e); }
+    } catch (e) {
+      console.log(e);
+    }
   };
 
   useEffect(() => {
@@ -712,7 +818,7 @@ export default function GameScreen() {
           {
             isLooping: true,
             volume: 0.4,
-          }
+          },
         );
 
         if (isMounted) {
@@ -739,7 +845,7 @@ export default function GameScreen() {
     currentKills: number,
     currentTimeInSeconds: number,
     currentHealth: number,
-    currentDashes: number = 0
+    currentDashes: number = 0,
   ) => {
     setRunning(false);
 
@@ -819,14 +925,23 @@ export default function GameScreen() {
     });
 
     return {
-      map: { matrix: mapMatrix, backgroundImage: currentBackground, renderer: MapRenderer },
+      map: {
+        matrix: mapMatrix,
+        backgroundImage: currentBackground,
+        renderer: MapRenderer,
+      },
       player: {
         body: {
           position: { x: 50, y: SCREEN_HEIGHT / 2 },
           velocity: { x: 0, y: 0 },
           radius: CONFIG.PLAYER_SIZE / 2,
           health: playerHP,
-          animation: { state: "idle", direction: "right", frameIndex: 0, timer: 0 },
+          animation: {
+            state: "idle",
+            direction: "right",
+            frameIndex: 0,
+            timer: 0,
+          },
           dash: {
             isDashing: false,
             timeLeft: 0,
@@ -846,7 +961,10 @@ export default function GameScreen() {
       ...enemyEntities,
       mapData: { matrix: mapMatrix },
       portal: {
-        body: { position: { x: SCREEN_WIDTH - 50, y: SCREEN_HEIGHT / 2 }, size: 60 },
+        body: {
+          position: { x: SCREEN_WIDTH - 50, y: SCREEN_HEIGHT / 2 },
+          size: 60,
+        },
         renderer: () => null,
       },
     };
@@ -884,7 +1002,12 @@ export default function GameScreen() {
     if (player.reachedPortal && !isTransitioning) {
       setIsTransitioning(true);
       const timeInSeconds = Math.floor(player.survivalTime / 1000);
-      setupNextLevel(player.kills, timeInSeconds, player.health, player.dash.dashCount);
+      setupNextLevel(
+        player.kills,
+        timeInSeconds,
+        player.health,
+        player.dash.dashCount,
+      );
     }
 
     return entities;
@@ -1023,47 +1146,138 @@ export default function GameScreen() {
 
             <View style={styles.controlsArea}>
               <View style={styles.dpadContainer}>
+                {/* BOTÓN ARRIBA */}
                 <Pressable
-                  style={({ pressed }) => [styles.dpadBtn, styles.btnUp, pressed && styles.btnPressed]}
+                  style={({ pressed }) => [
+                    styles.dpadBtnWrapper,
+                    styles.btnUpWrapper,
+                    pressed && styles.dpadBtnPressed,
+                  ]}
                   onPressIn={() => startMove("up")}
                   onPressOut={stopMove}
                 >
-                  <Text style={styles.arrow}>▲</Text>
+                  {({ pressed }) => (
+                    <>
+                      <Image
+                        source={require("../../assets/ui/cruceta_up.png")} // ← Asegúrate de tener esta imagen
+                        style={styles.dpadBtnImage}
+                        resizeMode="stretch"
+                      />
+                      {pressed && <View style={styles.dpadBtnShine} />}
+                    </>
+                  )}
                 </Pressable>
+
+                {/* BOTÓN ABAJO */}
                 <Pressable
-                  style={({ pressed }) => [styles.dpadBtn, styles.btnDown, pressed && styles.btnPressed]}
+                  style={({ pressed }) => [
+                    styles.dpadBtnWrapper,
+                    styles.btnDownWrapper,
+                    pressed && styles.dpadBtnPressed,
+                  ]}
                   onPressIn={() => startMove("down")}
                   onPressOut={stopMove}
                 >
-                  <Text style={styles.arrow}>▼</Text>
+                  {({ pressed }) => (
+                    <>
+                      <Image
+                        source={require("../../assets/ui/cruceta_down.png")} // ← Asegúrate de tener esta imagen
+                        style={styles.dpadBtnImage}
+                        resizeMode="stretch"
+                      />
+                      {pressed && <View style={styles.dpadBtnShine} />}
+                    </>
+                  )}
                 </Pressable>
+
+                {/* BOTÓN IZQUIERDA */}
                 <Pressable
-                  style={({ pressed }) => [styles.dpadBtn, styles.btnLeft, pressed && styles.btnPressed]}
+                  style={({ pressed }) => [
+                    styles.dpadBtnWrapper,
+                    styles.btnLeftWrapper,
+                    pressed && styles.dpadBtnPressed,
+                  ]}
                   onPressIn={() => startMove("left")}
                   onPressOut={stopMove}
                 >
-                  <Text style={styles.arrow}>◀</Text>
+                  {({ pressed }) => (
+                    <>
+                      <Image
+                        source={require("../../assets/ui/cruceta_left.png")} // ← Asegúrate de tener esta imagen
+                        style={styles.dpadBtnImage}
+                        resizeMode="stretch"
+                      />
+                      {pressed && <View style={styles.dpadBtnShine} />}
+                    </>
+                  )}
                 </Pressable>
+
+                {/* BOTÓN DERECHA */}
                 <Pressable
-                  style={({ pressed }) => [styles.dpadBtn, styles.btnRight, pressed && styles.btnPressed]}
+                  style={({ pressed }) => [
+                    styles.dpadBtnWrapper,
+                    styles.btnRightWrapper,
+                    pressed && styles.dpadBtnPressed,
+                  ]}
                   onPressIn={() => startMove("right")}
                   onPressOut={stopMove}
                 >
-                  <Text style={styles.arrow}>▶</Text>
+                  {({ pressed }) => (
+                    <>
+                      <Image
+                        source={require("../../assets/ui/cruceta_right.png")} // ← Asegúrate de tener esta imagen
+                        style={styles.dpadBtnImage}
+                        resizeMode="stretch"
+                      />
+                      {pressed && <View style={styles.dpadBtnShine} />}
+                    </>
+                  )}
                 </Pressable>
+
+                {/* CENTRO DE LA CRUCETA */}
                 <View style={styles.dpadCenter} />
               </View>
-
+              {/* BOTONES DE ACCIÓN (ATAQUE Y DASH) */}
               <View style={styles.actionButtons}>
+                {/* BOTÓN DE ATAQUE */}
                 <Pressable
-                  style={({ pressed }) => [styles.btn, styles.btnAttack, pressed && styles.btnPressed]}
+                  style={({ pressed }) => [
+                    styles.actionButtonWrapper,
+                    pressed && styles.actionButtonPressed,
+                  ]}
                   onPress={handleAttackPress}
-                />
+                >
+                  {({ pressed }) => (
+                    <>
+                      <Image
+                        source={require("../../assets/ui/button_attack.png")}
+                        style={styles.actionButtonImage}
+                        resizeMode="stretch"
+                      />
+                      {pressed && <View style={styles.actionButtonShine} />}
+                    </>
+                  )}
+                </Pressable>
 
+                {/* BOTÓN DE DASH */}
                 <Pressable
-                  style={({ pressed }) => [styles.btn, styles.btnDash, pressed && styles.btnPressed]}
+                  style={({ pressed }) => [
+                    styles.actionButtonWrapper,
+                    pressed && styles.actionButtonPressed,
+                  ]}
                   onPress={handleDashPress}
-                />
+                >
+                  {({ pressed }) => (
+                    <>
+                      <Image
+                        source={require("../../assets/ui/button_dash.png")}
+                        style={styles.actionButtonImage}
+                        resizeMode="stretch"
+                      />
+                      {pressed && <View style={styles.actionButtonShine} />}
+                    </>
+                  )}
+                </Pressable>
               </View>
             </View>
 
@@ -1132,7 +1346,9 @@ export default function GameScreen() {
                             <View style={styles.pauseButtonOverlayMenu}>
                               <Text style={styles.pauseButtonText}></Text>
                             </View>
-                            {pressed && <View style={styles.pauseButtonShine} />}
+                            {pressed && (
+                              <View style={styles.pauseButtonShine} />
+                            )}
                           </>
                         )}
                       </Pressable>
@@ -1145,7 +1361,9 @@ export default function GameScreen() {
                         ]}
                         onPress={() => {
                           playClickSound();
-                          const freshEnemies = JSON.parse(JSON.stringify(INITIAL_ENEMIES));
+                          const freshEnemies = JSON.parse(
+                            JSON.stringify(INITIAL_ENEMIES),
+                          );
                           setMapMatrix(INITIAL_MAP);
                           setEnemiesData(freshEnemies);
                           setAccumulatedStats({ kills: 0, time: 0 });
@@ -1168,7 +1386,9 @@ export default function GameScreen() {
                             <View style={styles.pauseButtonOverlayMenu}>
                               <Text style={styles.pauseButtonText}></Text>
                             </View>
-                            {pressed && <View style={styles.pauseButtonShine} />}
+                            {pressed && (
+                              <View style={styles.pauseButtonShine} />
+                            )}
                           </>
                         )}
                       </Pressable>
@@ -1205,7 +1425,9 @@ export default function GameScreen() {
                             <View style={styles.pauseButtonOverlayMenu}>
                               <Text style={styles.pauseButtonText}></Text>
                             </View>
-                            {pressed && <View style={styles.pauseButtonShine} />}
+                            {pressed && (
+                              <View style={styles.pauseButtonShine} />
+                            )}
                           </>
                         )}
                       </Pressable>
@@ -1229,7 +1451,7 @@ export default function GameScreen() {
                               source={require("../../assets/ui/button_music.png")}
                               style={[
                                 styles.musicButtonImage,
-                                isMusicMuted && { opacity: 0.5 }
+                                isMusicMuted && { opacity: 0.5 },
                               ]}
                               resizeMode="stretch"
                             />
@@ -1242,7 +1464,9 @@ export default function GameScreen() {
                                 />
                               )}
                             </View>
-                            {pressed && <View style={styles.pauseButtonShine} />}
+                            {pressed && (
+                              <View style={styles.pauseButtonShine} />
+                            )}
                           </>
                         )}
                       </Pressable>
@@ -1255,13 +1479,19 @@ export default function GameScreen() {
             {gameOver && (
               <View style={styles.gameOverContainer}>
                 <Text style={styles.gameOverText}>¡GAME OVER!</Text>
-                <Text style={styles.statsText}>Enemigos eliminados: {finalStats.kills}</Text>
-                <Text style={styles.statsText}>Tiempo sobrevivido: {finalStats.time}s</Text>
+                <Text style={styles.statsText}>
+                  Enemigos eliminados: {finalStats.kills}
+                </Text>
+                <Text style={styles.statsText}>
+                  Tiempo sobrevivido: {finalStats.time}s
+                </Text>
 
                 <Pressable
                   style={styles.restartButton}
                   onPress={() => {
-                    const freshEnemies = JSON.parse(JSON.stringify(INITIAL_ENEMIES));
+                    const freshEnemies = JSON.parse(
+                      JSON.stringify(INITIAL_ENEMIES),
+                    );
                     setMapMatrix(INITIAL_MAP);
                     setEnemiesData(freshEnemies);
                     setAccumulatedStats({ kills: 0, time: 0 });
@@ -1282,7 +1512,9 @@ export default function GameScreen() {
             {isTransitioning && (
               <View style={styles.loadingOverlay}>
                 <Text style={styles.loadingText}>INGRESANDO AL TÚNEL...</Text>
-                <Text style={styles.subLoadingText}>Generando siguiente zona con IA</Text>
+                <Text style={styles.subLoadingText}>
+                  Generando siguiente zona con IA
+                </Text>
                 <Pressable
                   style={styles.cancelLoadingBtn}
                   onPress={() => {
@@ -1294,7 +1526,9 @@ export default function GameScreen() {
               </View>
             )}
 
-            <View style={{ position: "absolute", width: 0, height: 0, opacity: 0 }}>
+            <View
+              style={{ position: "absolute", width: 0, height: 0, opacity: 0 }}
+            >
               {BACKGROUND_IMAGES.map((img, index) => (
                 <Image key={index} source={img} />
               ))}
@@ -1308,7 +1542,13 @@ export default function GameScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000" },
-  gameContainer: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%" },
+  gameContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+  },
   controlsArea: {
     position: "absolute",
     width: "100%",
@@ -1330,17 +1570,68 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.1)",
   },
   btnPressed: { backgroundColor: "rgba(120, 120, 120, 0.9)" },
-  btnUp: { top: 0, left: 50, width: 50, height: 50, borderTopLeftRadius: 8, borderTopRightRadius: 8 },
-  btnDown: { bottom: 0, left: 50, width: 50, height: 50, borderBottomLeftRadius: 8, borderBottomRightRadius: 8 },
-  btnLeft: { top: 50, left: 0, width: 50, height: 50, borderTopLeftRadius: 8, borderBottomLeftRadius: 8 },
-  btnRight: { top: 50, right: 0, width: 50, height: 50, borderTopRightRadius: 8, borderBottomRightRadius: 8 },
-  dpadCenter: { position: "absolute", top: 50, left: 50, width: 50, height: 50, backgroundColor: "rgba(60, 60, 60, 1)", zIndex: -1 },
-  arrow: { color: "rgba(255, 255, 255, 0.6)", fontSize: 20, fontWeight: "bold" },
-  actionButtons: { flexDirection: "row", gap: 25, alignItems: "center" },
-  btn: { width: 75, height: 75, borderRadius: 37.5, borderWidth: 2, borderColor: "rgba(255, 255, 255, 0.3)" },
+  btnUp: {
+    top: 0,
+    left: 50,
+    width: 50,
+    height: 50,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+  btnDown: {
+    bottom: 0,
+    left: 50,
+    width: 50,
+    height: 50,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  btnLeft: {
+    top: 50,
+    left: 0,
+    width: 50,
+    height: 50,
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
+  },
+  btnRight: {
+    top: 50,
+    right: 0,
+    width: 50,
+    height: 50,
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  dpadCenter: {
+    position: "absolute",
+    top: 50,
+    left: 50,
+    width: 50,
+    height: 50,
+    backgroundColor: "rgba(60, 60, 60, 1)",
+    zIndex: -1,
+  },
+  arrow: {
+    color: "rgba(255, 255, 255, 0.6)",
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  btn: {
+    width: 75,
+    height: 75,
+    borderRadius: 37.5,
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+  },
   btnAttack: { backgroundColor: "rgba(231, 76, 60, 0.3)", marginBottom: 30 },
   btnDash: { backgroundColor: "rgba(52, 152, 219, 0.3)", marginTop: 10 },
-  hudContainer: { position: "absolute", top: 20, right: 20, flexDirection: "column", alignItems: "flex-start" },
+  hudContainer: {
+    position: "absolute",
+    top: 20,
+    right: 20,
+    flexDirection: "column",
+    alignItems: "flex-start",
+  },
   healthContainer: { flexDirection: "row", gap: 5 },
   heartWrapper: { width: 30, height: 30 },
   heartImage: { width: "100%", height: "100%", resizeMode: "contain" },
@@ -1364,11 +1655,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     zIndex: 100,
   },
-  gameOverText: { color: "#ff4444", fontSize: 40, fontWeight: "bold", marginBottom: 20 },
+  gameOverText: {
+    color: "#ff4444",
+    fontSize: 40,
+    fontWeight: "bold",
+    marginBottom: 20,
+  },
   statsText: { color: "#fff", fontSize: 20, marginBottom: 10 },
-  restartButton: { marginTop: 30, paddingVertical: 15, paddingHorizontal: 40, backgroundColor: "#3498db", borderRadius: 10 },
+  restartButton: {
+    marginTop: 30,
+    paddingVertical: 15,
+    paddingHorizontal: 40,
+    backgroundColor: "#3498db",
+    borderRadius: 10,
+  },
   btnText: { color: "white", fontWeight: "bold", fontSize: 18 },
-  
+
   // === ESTILOS MEJORADOS DE PAUSA (VERSIÓN 2) ===
   pauseIconButtonWrapper: {
     position: "relative",
@@ -1565,11 +1867,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
   },
   mutedImage: {
-  position: "absolute",
-  width: 40,
-  height: 40,
-  opacity: 0.9,
-},
+    position: "absolute",
+    width: 40,
+    height: 40,
+    opacity: 0.9,
+  },
   loadingOverlay: {
     position: "absolute",
     top: 0,
@@ -1581,8 +1883,150 @@ const styles = StyleSheet.create({
     alignItems: "center",
     zIndex: 200,
   },
-  loadingText: { color: "#00ff00", fontSize: 28, fontWeight: "bold", letterSpacing: 3 },
-  subLoadingText: { color: "#888", fontSize: 14, marginTop: 10, fontStyle: "italic" },
-  cancelLoadingBtn: { marginTop: 50, paddingVertical: 10, paddingHorizontal: 20, borderWidth: 1, borderColor: "#89a48f", borderRadius: 5 },
-  cancelLoadingText: { color: "#a3aab3", fontSize: 14, fontWeight: "bold", letterSpacing: 1 },
+  loadingText: {
+    color: "#00ff00",
+    fontSize: 28,
+    fontWeight: "bold",
+    letterSpacing: 3,
+  },
+  subLoadingText: {
+    color: "#888",
+    fontSize: 14,
+    marginTop: 10,
+    fontStyle: "italic",
+  },
+  cancelLoadingBtn: {
+    marginTop: 50,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: "#89a48f",
+    borderRadius: 5,
+  },
+  cancelLoadingText: {
+    color: "#a3aab3",
+    fontSize: 14,
+    fontWeight: "bold",
+    letterSpacing: 1,
+  },
+
+  // === ESTILOS PARA BOTONES DE ACCIÓN (ATAQUE Y DASH) ===
+
+  actionButtons: {
+    flexDirection: "row",
+    gap: 25,
+    alignItems: "center",
+  },
+
+  // Wrapper del botón de acción (reemplaza a btn, btnAttack, btnDash)
+  actionButtonWrapper: {
+    width: 75,
+    height: 75,
+    borderRadius: 37.5,
+    position: "relative",
+    // Sombra exterior
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+
+  // Imagen de fondo del botón
+  actionButtonImage: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    borderRadius: 37.5, // Para mantener la forma circular
+  },
+
+  // Estado presionado (animación)
+  actionButtonPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.92 }, { translateY: 2 }],
+    shadowOffset: { width: 0, height: 3 },
+  },
+
+  // Efecto de brillo al presionar
+  actionButtonShine: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 37.5,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderTopColor: "rgba(255, 255, 255, 0.4)",
+    borderLeftColor: "rgba(255, 255, 255, 0.4)",
+  },
+
+  // Wrapper base para todos los botones de la cruceta
+  dpadBtnWrapper: {
+    position: "absolute",
+    width: 50,
+    height: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    // Sombra
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+
+  // Posiciones específicas de cada botón
+  btnUpWrapper: {
+    top: 0,
+    left: 50,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+
+  btnDownWrapper: {
+    bottom: 0,
+    left: 50,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+
+  btnLeftWrapper: {
+    top: 50,
+    left: 0,
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
+  },
+
+  btnRightWrapper: {
+    top: 50,
+    right: 0,
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+
+  // Imagen de cada botón
+  dpadBtnImage: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+  },
+
+  // Estado presionado (animación)
+  dpadBtnPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.92 }, { translateY: 2 }],
+    shadowOffset: { width: 0, height: 2 },
+  },
+
+  // Efecto de brillo al presionar
+  dpadBtnShine: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+    borderTopColor: "rgba(255, 255, 255, 0.3)",
+    borderLeftColor: "rgba(255, 255, 255, 0.3)",
+  },
 });

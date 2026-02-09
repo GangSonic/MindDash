@@ -1,13 +1,22 @@
 // src/scenes/MenuScreen.tsx
 import React, { useState } from "react";
-import { View, StyleSheet, Image, Text, Pressable, BackHandler, Alert, Platform} from "react-native";
+import {
+  View,
+  StyleSheet,
+  Image,
+  Text,
+  Pressable,
+  BackHandler,
+  Alert,
+  Platform,
+} from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { Audio } from 'expo-av';
+import { Audio } from "expo-av";
 
 async function playClickSound() {
   try {
     const { sound } = await Audio.Sound.createAsync(
-      require("../../assets/audio/click.mp3")
+      require("../../assets/audio/click.mp3"),
     );
     await sound.playAsync();
   } catch (error) {
@@ -27,7 +36,7 @@ function PixelButton({
   // Mapeo de nombres a imágenes
   const buttonImages: { [key: string]: any } = {
     play: require("../../assets/ui/button_play.png"),
-    options: require("../../assets/ui/button_options.png"),
+    //options: require("../../assets/ui/button_options.png"),
     credits: require("../../assets/ui/button_credits.png"),
     exit: require("../../assets/ui/button_exit.png"),
   };
@@ -36,7 +45,7 @@ function PixelButton({
     <Pressable
       onPress={() => {
         playClickSound(); // <--- ¡Sonido primero!
-        onPress();        // <--- Luego la acción original
+        onPress(); // <--- Luego la acción original
       }}
       style={({ pressed }) => [
         styles.buttonWrapper,
@@ -74,30 +83,29 @@ function PixelButton({
 
 export default function MenuScreen() {
   const navigation = useNavigation<any>();
-  const [showCredits, setShowCredits] = useState(false); 
+  const [showCredits, setShowCredits] = useState(false);
   // === FUNCIÓN PARA SALIR ===
   const handleExit = () => {
-    Alert.alert(
-      "Salir del Juego",
-      "¿Seguro que quieres salir?",
-      [
-        {
-          text: "Cancelar",
-          style: "cancel"
+    Alert.alert("Salir del Juego", "¿Seguro que quieres salir?", [
+      {
+        text: "Cancelar",
+        style: "cancel",
+      },
+      {
+        text: "Sí, salir",
+        onPress: () => {
+          if (Platform.OS === "android") {
+            BackHandler.exitApp();
+          } else {
+            // En iOS no se permite cerrar la app programáticamente
+            Alert.alert(
+              "Aviso",
+              "En iPhone debes usar el botón de inicio para salir.",
+            );
+          }
         },
-        { 
-          text: "Sí, salir", 
-          onPress: () => {
-            if (Platform.OS === 'android') {
-              BackHandler.exitApp(); 
-            } else {
-              // En iOS no se permite cerrar la app programáticamente
-              Alert.alert("Aviso", "En iPhone debes usar el botón de inicio para salir.");
-            }
-          } 
-        }
-      ]
-    );
+      },
+    ]);
   };
   return (
     <View style={styles.container}>
@@ -110,9 +118,17 @@ export default function MenuScreen() {
 
       {/* 2. MENÚ PRINCIPAL */}
       <View style={styles.menuContainer}>
-        <PixelButton text="" imageName="play" onPress={() => navigation.navigate("Game")} />
-        <PixelButton text="" imageName="options" onPress={() => {}} />
-        <PixelButton text="" imageName="credits" onPress={() => setShowCredits(true)} />       
+        <PixelButton
+          text=""
+          imageName="play"
+          onPress={() => navigation.navigate("Game")}
+        />
+        {/* <PixelButton text="" imageName="options" onPress={() => {}} /> */}
+        <PixelButton
+          text=""
+          imageName="credits"
+          onPress={() => setShowCredits(true)}
+        />
         <PixelButton text="" imageName="exit" onPress={handleExit} />
       </View>
 
@@ -124,23 +140,21 @@ export default function MenuScreen() {
 
           {/* Contenedor del contenido */}
           <View style={styles.popupContent}>
-            
             <Image
-              source={require("../../assets/creditos.png")} 
+              source={require("../../assets/creditos.png")}
               style={styles.creditsImage}
               resizeMode="contain"
             />
-            
+
             {/* Botón de cerrar */}
-            <PixelButton 
-              text="" 
+            <PixelButton
+              text=""
               imageName="exit"
-              onPress={() => setShowCredits(false)} 
+              onPress={() => setShowCredits(false)}
             />
           </View>
         </View>
       )}
-
     </View>
   );
 }
@@ -245,15 +259,15 @@ const styles = StyleSheet.create({
     borderTopColor: "rgba(255, 255, 255, 0.3)",
     borderLeftColor: "rgba(255, 255, 255, 0.3)",
   },
-    customOverlay: {
-    position: "absolute", 
+  customOverlay: {
+    position: "absolute",
     top: 0,
     left: 0,
     width: "100%",
     height: "100%",
     justifyContent: "center",
     alignItems: "center",
-    zIndex: 100, 
+    zIndex: 100,
   },
   darkBackdrop: {
     position: "absolute",
@@ -268,7 +282,7 @@ const styles = StyleSheet.create({
     height: "70%",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 101, 
+    zIndex: 101,
   },
   creditsImage: {
     width: "100%",
