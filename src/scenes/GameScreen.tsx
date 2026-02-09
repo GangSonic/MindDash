@@ -78,7 +78,7 @@ const INITIAL_MAP = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ];
 
-// === CONFIGURACIÓN DEL SPRITE DEL ENEMIGO (AGREGADO) ===
+// === CONFIGURACIÓN DEL SPRITE DEL ENEMIGO ===
 const ENEMY_SPRITE = require("../../assets/enemy/sprite_sheet_enemy.png");
 
 const ENEMY_SPRITE_CONFIG = {
@@ -89,16 +89,14 @@ const ENEMY_SPRITE_CONFIG = {
   animationSpeed: 200,
 };
 
-// === RENDERER DEL ENEMIGO (ACTUALIZADO CON SPRITES) ===
+// === RENDERER DEL ENEMIGO ===
 const EnemyRenderer = ({ body }: { body: any }) => {
   if (body.health <= 0 || body.isDead) return null;
 
-  // Escala para que se vea mejor
   const scale = 0.6;
   const frameWidth = ENEMY_SPRITE_CONFIG.frameWidth * scale;
   const frameHeight = ENEMY_SPRITE_CONFIG.frameHeight * scale;
 
-  // Frame actual
   const col = (body.animation?.frameIndex || 0) % ENEMY_SPRITE_CONFIG.columns;
   const row = body.animation?.row ?? 0;
 
@@ -109,15 +107,14 @@ const EnemyRenderer = ({ body }: { body: any }) => {
     <View
       style={{
         position: "absolute",
-        // CENTRADO CORRECTO
         left: body.position.x - frameWidth / 2,
         top: body.position.y - frameHeight / 2 - 8,
         width: frameWidth,
         height: frameHeight + 8,
         alignItems: "center",
+        backgroundColor: "transparent",
       }}
     >
-      {/* BARRA DE VIDA */}
       <View
         style={{
           width: frameWidth * 0.8,
@@ -137,12 +134,12 @@ const EnemyRenderer = ({ body }: { body: any }) => {
         />
       </View>
 
-      {/* SPRITE DEL ENEMIGO */}
       <View
         style={{
           width: frameWidth,
           height: frameHeight,
           overflow: "hidden",
+          backgroundColor: "transparent",
         }}
       >
         <Image
@@ -153,6 +150,7 @@ const EnemyRenderer = ({ body }: { body: any }) => {
             position: "absolute",
             left: -col * frameWidth,
             top: -row * frameHeight,
+            backgroundColor: "transparent",
           }}
           resizeMode="stretch"
         />
@@ -499,19 +497,17 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
     player.attackCount = (player.attackCount || 0) + 1;
   }
 
-  // === LÓGICA DE ENEMIGOS (ACTUALIZADA CON ANIMACIÓN) ===
+  // === LÓGICA DE ENEMIGOS ===
   Object.keys(entities).forEach((key) => {
     if (key.startsWith("enemy")) {
       const enemy = entities[key].body;
 
       if (enemy.isDead) return;
 
-      // Inicializar animación si no existe
       if (!enemy.animation) {
         enemy.animation = { frameIndex: 0, timer: 0, row: 0 };
       }
 
-      // Actualizar animación del sprite
       enemy.animation.timer += time.delta;
       if (enemy.animation.timer >= ENEMY_SPRITE_CONFIG.animationSpeed) {
         enemy.animation.timer = 0;
@@ -522,11 +518,10 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
       const dy = player.position.y - enemy.position.y;
       const distanceToPlayer = Math.hypot(dx, dy);
 
-      // Determinar fila según estado
       if (distanceToPlayer < enemy.detectionRange) {
-        enemy.animation.row = 1; // persecución
+        enemy.animation.row = 1;
       } else {
-        enemy.animation.row = 0; // patrulla
+        enemy.animation.row = 0;
       }
 
       if (distanceToPlayer < enemy.detectionRange) {
@@ -599,12 +594,10 @@ const PhysicsSystem = (entities: GameEntities, { time }: { time: any }) => {
         }
       }
 
-      // Daño al jugador
       if (distanceToPlayer < 18) {
         player.health -= 0.5;
       }
 
-      // Recibir daño del jugador
       if (player.attackRequested && distanceToPlayer < 60) {
         enemy.health -= 1;
         player.hitsLanded += 1;
@@ -1056,70 +1049,178 @@ export default function GameScreen() {
               </View>
             </View>
 
+            {/* BOTÓN DE PAUSA CON ESTILOS MEJORADOS DE LA VERSIÓN 2 */}
             {!isPaused && !gameOver && (
-              <Pressable style={styles.pauseButton} onPress={handlePause}>
-                <Text style={styles.pauseIcon}>||</Text>
-              </Pressable>
+              <View style={styles.pauseIconButtonWrapper}>
+                <Image
+                  source={require("../../assets/ui/pause_icon.png")}
+                  style={styles.pauseBackgroundImage}
+                  resizeMode="contain"
+                />
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.pauseButtonOverlay,
+                    pressed && styles.pauseButtonPressed,
+                  ]}
+                  onPress={handlePause}
+                >
+                  {({ pressed }) => (
+                    <>
+                      <View
+                        style={[
+                          styles.pressIndicator,
+                          pressed && styles.pressIndicatorActive,
+                        ]}
+                      />
+                      {pressed && <View style={styles.pressShine} />}
+                    </>
+                  )}
+                </Pressable>
+              </View>
             )}
 
+            {/* MENÚ DE PAUSA CON ESTILOS MEJORADOS DE LA VERSIÓN 2 */}
             {isPaused && (
               <View style={styles.pauseContainer}>
-                <Text style={styles.pauseTitle}>PAUSA</Text>
+                <Image
+                  source={require("../../assets/ui/menu_paused2.png")}
+                  style={styles.pauseMenuBackground}
+                  resizeMode="contain"
+                />
 
-                {/* BOTÓN CONTINUAR */}
-                <Pressable 
-                  style={styles.menuBtn} 
-                  onPress={() => {
-                    playClickSound(); 
-                    handleResume();
-                  }}
-                >
-                  <Text style={styles.menuText}>Continuar</Text>
-                </Pressable>
+                <View style={styles.pauseMenuContent}>
+                  <Text style={styles.pauseTitle}></Text>
 
-                  {/* BOTÓN REINICIAR */}
-                <Pressable
-                  style={styles.menuBtn}
-                  onPress={() => {
-                    playClickSound();
-                    const freshEnemies = JSON.parse(JSON.stringify(INITIAL_ENEMIES));
-                    setMapMatrix(INITIAL_MAP);
-                    setEnemiesData(freshEnemies);
-                    setAccumulatedStats({ kills: 0, time: 0 });
-                    setGameKey((prev) => prev + 1);
-                    setIsPaused(false);
-                    setPlayerHP(100);
-                    setRunning(true);
-                    velocityRef.current = { x: 0, y: 0 };
-                    dashSignalRef.current = false;
-                    attackSignalRef.current = false;
-                  }}
-                >
-                  <Text style={styles.menuText}>Reiniciar</Text>
-                </Pressable>
+                  <View style={styles.pauseButtonsContainer}>
+                    <View style={styles.pauseMainButtonsColumn}>
+                      {/* BOTÓN CONTINUAR */}
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.pauseMenuButtonWrapper,
+                          pressed && styles.pauseButtonPressedMenu,
+                        ]}
+                        onPress={() => {
+                          playClickSound();
+                          handleResume();
+                        }}
+                      >
+                        {({ pressed }) => (
+                          <>
+                            <Image
+                              source={require("../../assets/ui/button_continue.png")}
+                              style={styles.pauseButtonImage}
+                              resizeMode="stretch"
+                            />
+                            <View style={styles.pauseButtonOverlayMenu}>
+                              <Text style={styles.pauseButtonText}></Text>
+                            </View>
+                            {pressed && <View style={styles.pauseButtonShine} />}
+                          </>
+                        )}
+                      </Pressable>
 
-                  {/* BOTÓN SALIR A MENÚ */}
-                <Pressable
-                  style={[styles.menuBtn, styles.exitBtn]}
-                  onPress={async () => {
-                    playClickSound();
-                    // 1. Detener el juego
-                    setRunning(false);
-                    setIsPaused(false);
-                    
-                    // 2. Detener música si está sonando
-                    if (musicRef.current) {
-                        try {
-                            await musicRef.current.stopAsync();
-                        } catch (e) { console.log(e) }
-                    }
+                      {/* BOTÓN REINICIAR */}
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.pauseMenuButtonWrapper,
+                          pressed && styles.pauseButtonPressedMenu,
+                        ]}
+                        onPress={() => {
+                          playClickSound();
+                          const freshEnemies = JSON.parse(JSON.stringify(INITIAL_ENEMIES));
+                          setMapMatrix(INITIAL_MAP);
+                          setEnemiesData(freshEnemies);
+                          setAccumulatedStats({ kills: 0, time: 0 });
+                          setGameKey((prev) => prev + 1);
+                          setIsPaused(false);
+                          setPlayerHP(100);
+                          setRunning(true);
+                          velocityRef.current = { x: 0, y: 0 };
+                          dashSignalRef.current = false;
+                          attackSignalRef.current = false;
+                        }}
+                      >
+                        {({ pressed }) => (
+                          <>
+                            <Image
+                              source={require("../../assets/ui/button_restart.png")}
+                              style={styles.pauseButtonImage}
+                              resizeMode="stretch"
+                            />
+                            <View style={styles.pauseButtonOverlayMenu}>
+                              <Text style={styles.pauseButtonText}></Text>
+                            </View>
+                            {pressed && <View style={styles.pauseButtonShine} />}
+                          </>
+                        )}
+                      </Pressable>
 
-                    // 3. Navegar al Menú (Asegúrate que tu ruta se llame 'Menu' en App.tsx)
-                    navigation.navigate("Menu"); 
-                  }}
-                >
-                  <Text style={styles.menuText}>Salir a Menú Principal</Text>
-                </Pressable>
+                      {/* BOTÓN SALIR A MENÚ */}
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.pauseMenuButtonWrapper,
+                          pressed && styles.pauseButtonPressedMenu,
+                        ]}
+                        onPress={async () => {
+                          playClickSound();
+                          setRunning(false);
+                          setIsPaused(false);
+
+                          if (musicRef.current) {
+                            try {
+                              await musicRef.current.stopAsync();
+                            } catch (e) {
+                              console.log(e);
+                            }
+                          }
+
+                          navigation.navigate("Menu");
+                        }}
+                      >
+                        {({ pressed }) => (
+                          <>
+                            <Image
+                              source={require("../../assets/ui/button_menu.png")}
+                              style={styles.pauseButtonImage}
+                              resizeMode="stretch"
+                            />
+                            <View style={styles.pauseButtonOverlayMenu}>
+                              <Text style={styles.pauseButtonText}></Text>
+                            </View>
+                            {pressed && <View style={styles.pauseButtonShine} />}
+                          </>
+                        )}
+                      </Pressable>
+                    </View>
+
+                    {/* COLUMNA DERECHA - Botón de música */}
+                    <View style={styles.pauseMusicButtonColumn}>
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.musicButtonWrapper,
+                          pressed && styles.musicButtonPressed,
+                        ]}
+                        onPress={() => {
+                          console.log("Toggle música");
+                        }}
+                      >
+                        {({ pressed }) => (
+                          <>
+                            <Image
+                              source={require("../../assets/ui/button_music.png")}
+                              style={styles.musicButtonImage}
+                              resizeMode="stretch"
+                            />
+                            <View style={styles.musicButtonOverlay}>
+                              <Text style={styles.pauseButtonText}></Text>
+                            </View>
+                            {pressed && <View style={styles.pauseButtonShine} />}
+                          </>
+                        )}
+                      </Pressable>
+                    </View>
+                  </View>
+                </View>
               </View>
             )}
 
@@ -1239,46 +1340,202 @@ const styles = StyleSheet.create({
   statsText: { color: "#fff", fontSize: 20, marginBottom: 10 },
   restartButton: { marginTop: 30, paddingVertical: 15, paddingHorizontal: 40, backgroundColor: "#3498db", borderRadius: 10 },
   btnText: { color: "white", fontWeight: "bold", fontSize: 18 },
-  pauseButton: {
+  
+  // === ESTILOS MEJORADOS DE PAUSA (VERSIÓN 2) ===
+  pauseIconButtonWrapper: {
+    position: "relative",
+    top: 15,
+    left: 40,
+    width: 80,
+    height: 80,
+    zIndex: 50,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  pauseBackgroundImage: {
     position: "absolute",
-    top: 20,
-    left: 20,
-    width: 40,
-    height: 40,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    borderRadius: 8,
+    width: "100%",
+    height: "100%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  pauseButtonOverlay: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.5)",
-    zIndex: 50,
+    borderRadius: 10,
   },
-  pauseIcon: { color: "white", fontSize: 18, fontWeight: "bold" },
+  pauseButtonPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.92 }, { translateY: 2 }],
+    shadowOffset: { width: 0, height: 3 },
+  },
+  pressIndicator: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 10,
+    borderWidth: 0,
+    borderColor: "transparent",
+  },
+  pressIndicatorActive: {
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+  },
+  pressShine: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 10,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderTopColor: "rgba(255, 255, 255, 0.4)",
+    borderLeftColor: "rgba(255, 255, 255, 0.4)",
+  },
   pauseContainer: {
     position: "absolute",
     top: 0,
     left: 0,
     width: "100%",
     height: "100%",
-    backgroundColor: "rgba(0,0,0,0.8)",
+    backgroundColor: "rgba(0,0,0,0.85)",
     justifyContent: "center",
     alignItems: "center",
     zIndex: 100,
   },
-  pauseTitle: { color: "white", fontSize: 35, fontWeight: "bold", marginBottom: 30, letterSpacing: 2 },
-  menuBtn: {
-    backgroundColor: "#cf616194",
-    paddingVertical: 12,
-    paddingHorizontal: 50,
-    borderRadius: 8,
-    marginBottom: 15,
-    width: 250,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#3d0c64",
+  pauseMenuBackground: {
+    position: "absolute",
+    width: "90%",
+    maxWidth: 500,
+    height: "70%",
+    maxHeight: 600,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.8,
+    shadowRadius: 20,
+    elevation: 15,
   },
-  exitBtn: { backgroundColor: "#cf616194", borderColor: "#3d0c64", marginTop: 10 },
-  menuText: { color: "white", fontSize: 18, fontWeight: "bold" },
+  pauseMenuContent: {
+    width: "80%",
+    maxWidth: 400,
+    alignItems: "center",
+    gap: 3,
+    zIndex: 101,
+  },
+  pauseTitle: {
+    color: "white",
+    fontSize: 40,
+    fontWeight: "bold",
+    marginBottom: 20,
+    letterSpacing: 3,
+    textShadowColor: "#000",
+    textShadowOffset: { width: 3, height: 3 },
+    textShadowRadius: 5,
+  },
+  pauseButtonsContainer: {
+    flexDirection: "row",
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 40,
+    paddingHorizontal: 10,
+  },
+  pauseMainButtonsColumn: {
+    flex: 0,
+    gap: 3,
+    alignItems: "center",
+  },
+  pauseMusicButtonColumn: {
+    flex: 0,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  pauseMenuButtonWrapper: {
+    top: -15,
+    width: 180,
+    height: 60,
+    position: "relative",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  pauseButtonImage: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+  },
+  pauseButtonOverlayMenu: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "transparent",
+  },
+  pauseButtonPressedMenu: {
+    opacity: 0.9,
+    transform: [{ scale: 0.96 }, { translateY: 2 }],
+    shadowOffset: { width: 0, height: 2 },
+  },
+  pauseButtonText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
+    letterSpacing: 2,
+    textShadowColor: "#000",
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 3,
+  },
+  pauseButtonShine: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+    borderTopColor: "rgba(255, 255, 255, 0.3)",
+    borderLeftColor: "rgba(255, 255, 255, 0.3)",
+  },
+  musicButtonWrapper: {
+    width: 50,
+    height: 50,
+    position: "relative",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  musicButtonImage: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+  },
+  musicButtonOverlay: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "transparent",
+  },
+  musicButtonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.96 }, { translateY: 2 }],
+    shadowOffset: { width: 0, height: 2 },
+  },
   loadingOverlay: {
     position: "absolute",
     top: 0,
