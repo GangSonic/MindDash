@@ -58,7 +58,26 @@ To ensure the game remains functional even under heavy load or API limitations:
 3.  **Launch the project:**
     ```bash
     npx expo start --clear
-    ```
+
+
+## 🔑 Gemini API Setup
+
+MindDash uses **Google Gemini API** to power its AI-driven adaptive gameplay system.  
+To run the project locally, you must provide your own Gemini API key.
+
+### 1. Get a Gemini API Key
+
+1. Go to **Google AI Studio**
+2. Sign in with your Google account
+3. Create a new API key
+4. Copy the generated key
+
+### 2. Create a `.env` File 
+
+In the root directory of the project, create a file named `.env`:
+- you can view the “.env.example” file
+
+GEMINI_API_KEY=your_api_key_here
 
 4.  **How to Play:**
     * Scan the QR code with the **Expo Go** app (Android/iOS).
